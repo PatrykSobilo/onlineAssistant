@@ -7,6 +7,9 @@ const { syncDatabase } = require('./models/index');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const noteCategoryRoutes = require('./routes/noteCategoryRoutes');
+const noteSubCategoryRoutes = require('./routes/noteSubCategoryRoutes');
+const noteRoutes = require('./routes/noteRoutes');
 
 dotenv.config();
 
@@ -43,6 +46,9 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/categories', noteCategoryRoutes);
+app.use('/api/subcategories', noteSubCategoryRoutes);
+app.use('/api/notes', noteRoutes);
 
 // 404 Handler
 app.use((req, res) => {

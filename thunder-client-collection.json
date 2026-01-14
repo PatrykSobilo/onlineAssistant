@@ -1,0 +1,477 @@
+{
+  "clientName": "Thunder Client",
+  "collectionName": "onlineAssistant API",
+  "collectionId": "online-assistant-collection",
+  "dateExported": "2026-01-14",
+  "version": "1.0",
+  "folders": [
+    {
+      "id": "auth-folder",
+      "name": "🔐 Authentication",
+      "requests": [
+        {
+          "name": "Login",
+          "method": "POST",
+          "url": "http://localhost:5000/api/auth/login",
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"test123\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Register",
+          "method": "POST",
+          "url": "http://localhost:5000/api/auth/register",
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Get Me",
+          "method": "GET",
+          "url": "http://localhost:5000/api/auth/me",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "categories-folder",
+      "name": "📁 Categories",
+      "requests": [
+        {
+          "name": "Get All Categories",
+          "method": "GET",
+          "url": "http://localhost:5000/api/categories",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Category by ID",
+          "method": "GET",
+          "url": "http://localhost:5000/api/categories/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Create Category",
+          "method": "POST",
+          "url": "http://localhost:5000/api/categories",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"name\": \"Nowa Kategoria\",\n  \"icon\": \"📌\",\n  \"color\": \"#EC4899\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Update Category",
+          "method": "PUT",
+          "url": "http://localhost:5000/api/categories/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"name\": \"Praca - Updated\",\n  \"icon\": \"🏢\",\n  \"color\": \"#10B981\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Get Category Stats",
+          "method": "GET",
+          "url": "http://localhost:5000/api/categories/1/stats",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Delete Category",
+          "method": "DELETE",
+          "url": "http://localhost:5000/api/categories/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "subcategories-folder",
+      "name": "🌳 Subcategories",
+      "requests": [
+        {
+          "name": "Get All Subcategories",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Root Subcategories (Level 1)",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories?rootOnly=true",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Subcategories by Category",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories?categoryId=1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Children of Subcategory",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories?parentId=1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Subcategory Tree",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories/tree/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Subcategory by ID",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Subcategory Path (Breadcrumb)",
+          "method": "GET",
+          "url": "http://localhost:5000/api/subcategories/3/path",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Create Subcategory (Level 1)",
+          "method": "POST",
+          "url": "http://localhost:5000/api/subcategories",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"categoryId\": 1,\n  \"parentSubCategoryId\": null,\n  \"name\": \"Nowa Subkategoria L1\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Create Subcategory (Level 2 - Child)",
+          "method": "POST",
+          "url": "http://localhost:5000/api/subcategories",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"categoryId\": 1,\n  \"parentSubCategoryId\": 1,\n  \"name\": \"Nowa Subkategoria L2\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Update Subcategory",
+          "method": "PUT",
+          "url": "http://localhost:5000/api/subcategories/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"name\": \"Klient ABC - Updated\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Unlock Subcategory (Level 3-5)",
+          "method": "PUT",
+          "url": "http://localhost:5000/api/subcategories/7/unlock",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Delete Subcategory",
+          "method": "DELETE",
+          "url": "http://localhost:5000/api/subcategories/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "notes-folder",
+      "name": "📝 Notes",
+      "requests": [
+        {
+          "name": "Get All Notes",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Notes by Category",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes?categoryId=1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Notes by Hierarchy Path",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes?categoryId=1&subCategoryId1=1&subCategoryId2=4",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Notes by Tags",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes?tags=pilne,faktura",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Search Notes",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes?search=faktura",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Note by ID",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Get Note Stats",
+          "method": "GET",
+          "url": "http://localhost:5000/api/notes/stats",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        },
+        {
+          "name": "Create Note (Simple)",
+          "method": "POST",
+          "url": "http://localhost:5000/api/notes",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"noteCategoryId\": 1,\n  \"content\": \"Nowa notatka testowa\",\n  \"tags\": [\"test\", \"nowe\"],\n  \"source\": \"text\",\n  \"language\": \"pl\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Create Note (With Hierarchy)",
+          "method": "POST",
+          "url": "http://localhost:5000/api/notes",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"noteCategoryId\": 1,\n  \"noteSubCategoryId1\": 1,\n  \"noteSubCategoryId2\": 4,\n  \"noteSubCategoryId3\": 7,\n  \"content\": \"Notatka z pełną hierarchią - Praca > Klient ABC > Faktury zakupu > Zakup usług\",\n  \"tags\": [\"hierarchia\", \"test\", \"faktura\"],\n  \"source\": \"text\",\n  \"language\": \"pl\",\n  \"aiResponse\": \"To jest przykładowa odpowiedź AI\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Update Note",
+          "method": "PUT",
+          "url": "http://localhost:5000/api/notes/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"content\": \"Zaktualizowana treść notatki\",\n  \"tags\": [\"zaktualizowane\", \"edytowane\"]\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Add Tag to Note",
+          "method": "POST",
+          "url": "http://localhost:5000/api/notes/1/tags",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"tag\": \"nowy-tag\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Remove Tag from Note",
+          "method": "DELETE",
+          "url": "http://localhost:5000/api/notes/1/tags",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "body": {
+            "type": "json",
+            "raw": "{\n  \"tag\": \"pilne\"\n}"
+          },
+          "tests": []
+        },
+        {
+          "name": "Delete Note",
+          "method": "DELETE",
+          "url": "http://localhost:5000/api/notes/1",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOKEN_HERE"
+            }
+          ],
+          "tests": []
+        }
+      ]
+    }
+  ]
+}

@@ -114,8 +114,8 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    // userId comes from authMiddleware
-    const user = await User.findByPk(req.userId, {
+    // userId comes from authMiddleware (req.user.id)
+    const user = await User.findByPk(req.user.id, {
       attributes: ['id', 'name', 'email', 'createdAt'],
       include: [{
         model: UserSettings,
