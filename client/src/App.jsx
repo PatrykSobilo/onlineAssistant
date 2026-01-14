@@ -3,6 +3,9 @@ import { AuthProvider } from './context/AuthContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Notes from './pages/Notes'
+import Discussions from './pages/Discussions'
+import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
 
 function App() {
@@ -17,6 +20,38 @@ function App() {
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard" 
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/notes" 
+            element={
+              <PrivateRoute>
+                <Notes />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/discussions" 
+            element={
+              <PrivateRoute>
+                <Discussions />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <PrivateRoute>
+                <Settings />
               </PrivateRoute>
             } 
           />

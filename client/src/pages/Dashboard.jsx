@@ -3,14 +3,17 @@ import { AuthContext } from '../context/AuthContext';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import RecordButton from '../components/RecordButton';
 import TranscriptionDisplay from '../components/TranscriptionDisplay';
+import Navbar from '../components/Navbar';
 import api from '../services/api';
 
 const Dashboard = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [language, setLanguage] = useState('en-US');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResponse, setAiResponse] = useState(null);
   const [error, setError] = useState(null);
+  const [manualInput, setManualInput] = useState('');
+  const [showTextInput, setShowTextInput] = useState(false);
   
   const {
     isListening,
@@ -22,9 +25,10 @@ const Dashboard = () => {
     resetTranscript
   } = useSpeechRecognition(language);
 
-  const handleAskAI = async () => {
-    if (!transcript || transcript.trim().length === 0) {
-      setError('Please record something first');
+  const handleAskAI = async (textToSend = null) => {
+    const messageToSend = textToSend || transcript;
+    if (!messageToSend || messageToSend.trim().length === 0) {
+      setError('Proszę wpisać lub nagrać wiadomość');
       return;
     }
 
@@ -34,7 +38,7 @@ const Dashboard = () => {
 
     try {
       const response = await api.post('/api/ai/chat', {
-        message: transcript
+        message: messageToSend
       });
       
       setAiResponse(response.data.response);
@@ -51,32 +55,35 @@ const Dashboard = () => {
     resetTranscript();
     setAiResponse(null);
     setError(null);
+    setManualInput('');
+  };
+
+  const handleSendText = () => {
+    if (manualInput.trim()) {
+      // Update transcript with manual input
+      resetTranscript();
+      // Manually set the transcript (we'll need to modify this)
+      const syntheticEvent = { target: { value: manualInput } };
+      // Since we can't directly set transcript, we'll use it in handleAskAI
+    }
   };
 
   return (
-    <div style={styles.container}>
-      <nav style={styles.nav}>
-        <h1 style={styles.logo}>🤖 Online Assistant</h1>
-        <div style={styles.navRight}>
-          {user && <span style={styles.userName}>Hello, {user.name}! 👋</span>}
-          <button onClick={logout} style={styles.logoutButton}>
-            Logout
-          </button>
-        </div>
-      </nav>
-      
-      <main style={styles.main}>
-        <div style={styles.hero}>
-          <h2 style={styles.title}>Welcome to Your Dashboard! 🎉</h2>
-          <p style={styles.subtitle}>Your AI-powered note-taking assistant is ready</p>
-        </div>
-        
-        {!isSupported && (
-          <div style={styles.alert}>
-            ⚠️ Your browser doesn't support speech recognition. Please use Chrome, Edge, or Safari.
+    <>
+      <Navbar />
+      <div style={styles.container}>
+        <main style={styles.main}>
+          <div style={styles.hero}>
+            <h2 style={styles.title}>Witaj w Asystencie! 🎉</h2>
+            <p style={styles.subtitle}>Twój asystent AI z rozpoznawaniem mowy jest gotowy</p>
           </div>
-        )}
-        
+          
+          {!isSupported && (
+            <div style={styles.alert}>
+              ⚠️ Twoja przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome, Edge lub Safari.
+            </div>
+          )}
+          
         <div style={styles.languageSelector}>
           <label style={styles.label}>Language:</label>
           <select 
@@ -93,14 +100,65 @@ const Dashboard = () => {
             <option value="es-ES">🇪🇸 Español</option>
           </select>
         </div>
-        
-        <div style={styles.buttonContainer}>
-          <RecordButton
-            isListening={isListening}
-            onStart={startListening}
-            onStop={stopListening}
-            disabled={!isSupported}
-          />
+        <div style={styles.inputSection}>
+          <div style={styles.buttonContainer}>
+            <RecordButton
+              isListening={isListening}
+              onStart={startListening}
+              onStop={stopListening}
+              disabled={!isSupported}
+            />
+          </div>
+          
+          <div style={styles.orDivider}>lub</div>
+          
+          {!showTextInput ? (
+            <div style={styles.buttonContainer}>
+              <button
+                onClick={() => setShowTextInput(true)}
+                style={styles.inputMessageButton}
+              >
+                📝 INPUT MESSAGE
+              </button>
+            </div>
+          ) : (
+            <div style={styles.textInputContainer}>
+              <textarea
+                value={manualInput}
+                onChange={(e) => setManualInput(e.target.value)}
+                placeholder="Wpisz swoją wiadomość tutaj..."
+                style={styles.textarea}
+                rows={4}
+                disabled={isListening}
+                autoFocus
+              />
+              <div style={styles.textInputActions}>
+                <button
+                  onClick={() => {
+                    setShowTextInput(false);
+                    setManualInput('');
+                  }}
+                  style={styles.cancelButton}
+                >
+                  ❌ Anuluj
+                </button>
+                <button
+                  onClick={() => {
+                    handleAskAI(manualInput);
+                    setManualInput('');
+                    setShowTextInput(false);
+                  }}
+                  disabled={!manualInput.trim() || isAnalyzing || isListening}
+                  style={{
+                    ...styles.sendButton,
+                    ...(!manualInput.trim() || isAnalyzing || isListening ? styles.sendButtonDisabled : {})
+                  }}
+                >
+                  {isAnalyzing ? '⏳ Wysyłanie...' : '🚀 Wyślij'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         
         <div style={styles.transcriptionContainer}>
@@ -143,8 +201,9 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 };
 
@@ -152,36 +211,6 @@ const styles = {
   container: {
     minHeight: '100vh',
     backgroundColor: '#f5f5f5'
-  },
-  nav: {
-    backgroundColor: 'white',
-    padding: '1rem 2rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-  },
-  logo: {
-    margin: 0,
-    fontSize: '1.5rem'
-  },
-  navRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  userName: {
-    fontSize: '1rem',
-    color: '#666'
-  },
-  logoutButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: '500'
   },
   main: {
     maxWidth: '800px',
@@ -221,10 +250,84 @@ const styles = {
     backgroundColor: 'white',
     cursor: 'pointer'
   },
+  inputSection: {
+    marginBottom: '2rem'
+  },
   buttonContainer: {
     display: 'flex',
     justifyContent: 'center',
-    marginBottom: '2rem'
+    marginBottom: '1rem'
+  },
+  orDivider: {
+    textAlign: 'center',
+    fontSize: '1rem',
+    color: '#999',
+    margin: '1.5rem 0',
+    fontWeight: '500'
+  },
+  textInputContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    alignItems: 'center',
+    width: '100%'
+  },
+  textInputActions: {
+    display: 'flex',
+    gap: '1rem',
+    justifyContent: 'center'
+  },
+  inputMessageButton: {
+    padding: '1.5rem 3rem',
+    fontSize: '1.5rem',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    transition: 'all 0.3s ease',
+    minWidth: '300px'
+  },
+  textarea: {
+    width: '100%',
+    maxWidth: '600px',
+    padding: '1rem',
+    fontSize: '1rem',
+    border: '2px solid #ddd',
+    borderRadius: '12px',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    lineHeight: '1.6'
+  },
+  cancelButton: {
+    padding: '0.75rem 2rem',
+    fontSize: '1.125rem',
+    backgroundColor: '#6c757d',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    transition: 'all 0.3s ease'
+  },
+  sendButton: {
+    padding: '0.75rem 2rem',
+    fontSize: '1.125rem',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    transition: 'all 0.3s ease'
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#6c757d',
+    cursor: 'not-allowed',
+    opacity: 0.6
   },
   transcriptionContainer: {
     marginBottom: '2rem'
