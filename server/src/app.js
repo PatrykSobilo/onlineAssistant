@@ -1,23 +1,21 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-// import connectDB from './config/database.js'; // Temporarily disabled - starting without DB
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const { testConnection, sequelize } = require('./config/database');
+const { syncDatabase } = require('./models/index');
 
 // Import routes
-import authRoutes from './routes/authRoutes.js';
-import aiRoutes from './routes/aiRoutes.js';
-// import noteRoutes from './routes/noteRoutes.js';
+const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Connect to database - DISABLED FOR NOW (starting with in-memory storage)
-// connectDB();
-
-// In-memory storage for MVP (will be replaced with MongoDB later)
-let notes = [];
+// Test database connection and sync models
+testConnection();
+syncDatabase();
 
 // Middleware
 app.use(cors({
@@ -32,7 +30,8 @@ app.get('/', (req, res) => {
   res.json({ 
     message: '🤖 Online Assistant API',
     status: 'running',
-    version: '1.0.0'
+    version: '1.0.0',
+    database: 'MySQL with Sequelize'
   });
 });
 
@@ -44,33 +43,6 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
-
-// API Routes - MVP endpoints (in-memory)
-app.post('/api/notes', (req, res) => {
-  const note = {
-    id: Date.now(),
-    text: req.body.text || '',
-    transcription: req.body.transcription || '',
-    createdAt: new Date().toISOString()
-  };
-  notes.push(note);
-  console.log('📝 Note created:', note);
-  res.json({ success: true, note });
-});
-
-app.get('/api/notes', (req, res) => {
-  console.log('📋 Fetching notes, count:', notes.length);
-  res.json({ success: true, notes });
-});
-
-app.delete('/api/notes/:id', (req, res) => {
-  const id = parseInt(req.params.id);
-  const initialLength = notes.length;
-  notes = notes.filter(note => note.id !== id);
-  const deleted = initialLength > notes.length;
-  console.log('🗑️ Note deleted:', id, deleted);
-  res.json({ success: deleted });
-});
 
 // 404 Handler
 app.use((req, res) => {
@@ -89,4 +61,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
-export default app;
+module.exports = app;

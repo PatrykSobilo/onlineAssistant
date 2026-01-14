@@ -1,6 +1,6 @@
-import { tavily } from '@tavily/core';
+const { tavily } = require('@tavily/core');
 
-export const searchWeb = async (query) => {
+exports.searchWeb = async (query) => {
   try {
     console.log('🔍 Searching web for:', query);
     

@@ -1,16 +1,30 @@
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
-dotenv.config();
+const sequelize = new Sequelize({
+  dialect: 'mysql',
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
+  username: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'onlineassistant',
+  logging: false,
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
+});
 
-const connectDB = async () => {
+// Test connection
+const testConnection = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    await sequelize.authenticate();
+    console.log('✅ Database connection established successfully.');
   } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    console.error('❌ Unable to connect to the database:', error);
   }
 };
 
-export default connectDB;
+module.exports = { sequelize, testConnection };

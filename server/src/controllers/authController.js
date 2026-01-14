@@ -1,10 +1,9 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const UserSettings = require('../models/UserSettings');
 
-// In-memory user storage (will be replaced with MongoDB later)
-let users = [];
-
-export const register = async (req, res) => {
+exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -18,7 +17,7 @@ export const register = async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
@@ -27,15 +26,20 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
-    const user = {
-      id: Date.now(),
+    const user = await User.create({
       name,
       email,
-      password: hashedPassword,
-      createdAt: new Date().toISOString()
-    };
+      password: hashedPassword
+    });
 
-    users.push(user);
+    // Create default settings for user
+    await UserSettings.create({
+      userId: user.id,
+      language: 'en-US',
+      theme: 'light',
+      notificationsEnabled: true,
+      defaultVoiceLanguage: 'en-US'
+    });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -62,7 +66,7 @@ export const register = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -72,7 +76,7 @@ export const login = async (req, res) => {
     }
 
     // Find user
-    const user = users.find(u => u.email === email);
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -108,10 +112,17 @@ export const login = async (req, res) => {
   }
 };
 
-export const getMe = async (req, res) => {
+exports.getMe = async (req, res) => {
   try {
     // userId comes from authMiddleware
-    const user = users.find(u => u.id === req.userId);
+    const user = await User.findByPk(req.userId, {
+      attributes: ['id', 'name', 'email', 'createdAt'],
+      include: [{
+        model: UserSettings,
+        as: 'settings',
+        attributes: ['language', 'theme', 'notificationsEnabled', 'defaultVoiceLanguage']
+      }]
+    });
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -122,7 +133,8 @@ export const getMe = async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        settings: user.settings
       }
     });
   } catch (error) {

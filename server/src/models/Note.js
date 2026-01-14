@@ -1,58 +1,112 @@
-import mongoose from 'mongoose';
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
+const User = require('./User');
 
-const noteSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+const Note = sequelize.define('Note', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
   },
-  title: {
-    type: String,
-    required: true,
-    trim: true
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
+  },
+  noteCategoryId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_categories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  noteSubCategoryId1: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_subcategories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  noteSubCategoryId2: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_subcategories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  noteSubCategoryId3: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_subcategories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  noteSubCategoryId4: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_subcategories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  noteSubCategoryId5: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_subcategories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL'
+  },
+  tags: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
   },
   content: {
-    type: String,
-    required: true
-  },
-  category: {
-    type: String,
-    enum: ['work', 'personal', 'study', 'other'],
-    default: 'other'
-  },
-  tags: [{
-    type: String,
-    trim: true
-  }],
-  priority: {
-    type: String,
-    enum: ['high', 'medium', 'low'],
-    default: 'medium'
+    type: DataTypes.TEXT,
+    allowNull: false
   },
   source: {
-    type: String,
-    enum: ['voice', 'manual', 'chat'],
-    default: 'manual'
+    type: DataTypes.ENUM('voice', 'text'),
+    defaultValue: 'text'
   },
-  transcription: {
-    type: String
+  language: {
+    type: DataTypes.STRING(10),
+    allowNull: true
+  },
+  aiResponse: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   createdAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   },
   updatedAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
+}, {
+  tableName: 'notes',
+  timestamps: true
 });
 
-// Update timestamp on save
-noteSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Define relationships
+User.hasMany(Note, { foreignKey: 'userId', as: 'notes' });
+Note.belongsTo(User, { foreignKey: 'userId' });
 
-const Note = mongoose.model('Note', noteSchema);
-
-export default Note;
+module.exports = Note;

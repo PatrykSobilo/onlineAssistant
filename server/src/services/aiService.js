@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { searchWeb } from './searchService.js';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { searchWeb } = require('./searchService');
 
-export const chatWithAI = async (userMessage) => {
+exports.chatWithAI = async (userMessage) => {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     
