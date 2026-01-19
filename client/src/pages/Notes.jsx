@@ -16,7 +16,7 @@ const Notes = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await api.get('/api/categories');
+      const response = await api.get('/categories');
       setCategories(response.data);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -26,7 +26,7 @@ const Notes = () => {
   const fetchNotes = async (categoryId = '') => {
     try {
       setLoading(true);
-      const url = categoryId ? `/api/notes?categoryId=${categoryId}` : '/api/notes';
+      const url = categoryId ? `/notes?categoryId=${categoryId}` : '/notes';
       const response = await api.get(url);
       setNotes(response.data);
       setError(null);

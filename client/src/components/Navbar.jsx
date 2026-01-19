@@ -28,6 +28,12 @@ const Navbar = () => {
               Notatki
             </Link>
             <Link 
+              to="/categories" 
+              style={{...styles.navLink, ...(isActive('/categories') && styles.navLinkActive)}}
+            >
+              Kategorie
+            </Link>
+            <Link 
               to="/discussions" 
               style={{...styles.navLink, ...(isActive('/discussions') && styles.navLinkActive)}}
             >

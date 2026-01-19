@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Notes from './pages/Notes'
+import Categories from './pages/Categories'
 import Discussions from './pages/Discussions'
 import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
@@ -36,6 +37,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Notes />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/categories" 
+            element={
+              <PrivateRoute>
+                <Categories />
               </PrivateRoute>
             } 
           />

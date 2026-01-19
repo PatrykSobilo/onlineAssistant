@@ -37,7 +37,7 @@ const Dashboard = () => {
     setAiResponse(null);
 
     try {
-      const response = await api.post('/api/ai/chat', {
+      const response = await api.post('/ai/chat', {
         message: messageToSend
       });
       
