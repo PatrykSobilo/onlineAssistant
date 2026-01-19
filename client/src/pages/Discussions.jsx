@@ -11,6 +11,9 @@ const Discussions = () => {
   const [sending, setSending] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [useNotesContext, setUseNotesContext] = useState(true);
+  const [usedNotes, setUsedNotes] = useState([]);
+  const [showUsedNotes, setShowUsedNotes] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -67,13 +70,21 @@ const Discussions = () => {
     const messageContent = newMessage.trim();
     setNewMessage('');
     setSending(true);
+    setUsedNotes([]);
 
     try {
       const response = await api.post(`/discussions/${selectedDiscussion.id}/messages`, {
-        content: messageContent
+        content: messageContent,
+        useNotesContext
       });
 
       setMessages([...messages, response.data.userMessage, response.data.aiMessage]);
+      
+      if (response.data.usedNotes && response.data.usedNotes.length > 0) {
+        setUsedNotes(response.data.usedNotes);
+        setShowUsedNotes(true);
+      }
+      
       fetchDiscussions(); // Refresh list to update lastMessageAt
     } catch (error) {
       console.error('Error sending message:', error);
@@ -233,22 +244,67 @@ const Discussions = () => {
               </div>
 
               <form onSubmit={sendMessage} style={styles.inputForm}>
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Napisz wiadomość..."
-                  style={styles.messageInput}
-                  disabled={sending}
-                />
-                <button
-                  type="submit"
-                  style={{...styles.sendButton, ...(sending ? styles.sendButtonDisabled : {})}}
-                  disabled={sending}
-                >
-                  {sending ? '⏳' : '📤'}
-                </button>
+                <div style={styles.inputRow}>
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={useNotesContext}
+                      onChange={(e) => setUseNotesContext(e.target.checked)}
+                      style={styles.checkbox}
+                    />
+                    <span style={styles.checkboxText}>🔍 Szukaj w moich notatkach</span>
+                  </label>
+                  {usedNotes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowUsedNotes(!showUsedNotes)}
+                      style={styles.notesInfoButton}
+                    >
+                      📚 Użyto {usedNotes.length} {usedNotes.length === 1 ? 'notatki' : 'notatek'}
+                    </button>
+                  )}
+                </div>
+                <div style={styles.inputRow}>
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Napisz wiadomość..."
+                    style={styles.messageInput}
+                    disabled={sending}
+                  />
+                  <button
+                    type="submit"
+                    style={{...styles.sendButton, ...(sending ? styles.sendButtonDisabled : {})}}
+                    disabled={sending}
+                  >
+                    {sending ? '⏳' : '📤'}
+                  </button>
+                </div>
               </form>
+
+              {/* Panel użytych notatek */}
+              {showUsedNotes && usedNotes.length > 0 && (
+                <div style={styles.usedNotesPanel}>
+                  <div style={styles.usedNotesHeader}>
+                    <span>📚 Notatki użyte w ostatniej odpowiedzi:</span>
+                    <button onClick={() => setShowUsedNotes(false)} style={styles.closeNotesButton}>✕</button>
+                  </div>
+                  <div style={styles.usedNotesList}>
+                    {usedNotes.map((note, idx) => (
+                      <div key={note.id} style={styles.usedNoteItem}>
+                        <span style={styles.usedNoteNumber}>{idx + 1}.</span>
+                        {note.category && (
+                          <span style={styles.usedNoteCategory}>
+                            {note.category.icon} {note.category.name}
+                          </span>
+                        )}
+                        <span style={styles.usedNoteContent}>{note.content}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div style={styles.emptyChat}>
@@ -447,8 +503,41 @@ const styles = {
     padding: '1.25rem',
     borderTop: '1px solid #e0e0e0',
     display: 'flex',
+    flexDirection: 'column',
     gap: '0.75rem',
     backgroundColor: 'white'
+  },
+  inputRow: {
+    display: 'flex',
+    gap: '0.75rem',
+    alignItems: 'center'
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    color: '#555'
+  },
+  checkbox: {
+    cursor: 'pointer',
+    width: '16px',
+    height: '16px'
+  },
+  checkboxText: {
+    userSelect: 'none'
+  },
+  notesInfoButton: {
+    padding: '0.375rem 0.75rem',
+    backgroundColor: '#10B981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
   },
   messageInput: {
     flex: 1,
@@ -471,6 +560,61 @@ const styles = {
   sendButtonDisabled: {
     backgroundColor: '#ccc',
     cursor: 'not-allowed'
+  },
+  usedNotesPanel: {
+    borderTop: '1px solid #e0e0e0',
+    backgroundColor: '#F9FAFB',
+    maxHeight: '200px',
+    overflowY: 'auto'
+  },
+  usedNotesHeader: {
+    padding: '0.75rem 1.25rem',
+    backgroundColor: '#10B981',
+    color: 'white',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  closeNotesButton: {
+    background: 'none',
+    border: 'none',
+    color: 'white',
+    cursor: 'pointer',
+    fontSize: '1.25rem',
+    padding: 0
+  },
+  usedNotesList: {
+    padding: '0.75rem 1.25rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem'
+  },
+  usedNoteItem: {
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'flex-start',
+    padding: '0.5rem',
+    backgroundColor: 'white',
+    borderRadius: '6px',
+    border: '1px solid #E5E7EB',
+    fontSize: '0.875rem'
+  },
+  usedNoteNumber: {
+    fontWeight: '600',
+    color: '#10B981',
+    minWidth: '20px'
+  },
+  usedNoteCategory: {
+    fontWeight: '600',
+    color: '#6B7280',
+    whiteSpace: 'nowrap'
+  },
+  usedNoteContent: {
+    color: '#333',
+    flex: 1,
+    lineHeight: '1.4'
   },
   emptyChat: {
     flex: 1,
