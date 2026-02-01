@@ -1,6 +1,132 @@
 const { NoteSubCategory, NoteCategory, Note } = require('../models');
 const { Op } = require('sequelize');
 
+// Helper function to automatically move notes when creating subcategories
+const handleNotesAutoMove = async (userId, categoryId, parentSubCategoryId, newLevel, newSubCategoryId) => {
+  try {
+    // Find notes that need to be moved
+    let notesToMove = [];
+    
+    if (newLevel === 1) {
+      // Creating level 1 - move notes from category root (no subcategory)
+      notesToMove = await Note.findAll({
+        where: {
+          userId,
+          noteCategoryId: categoryId,
+          noteSubCategoryId1: null
+        }
+      });
+    } else if (newLevel === 2 && parentSubCategoryId) {
+      // Creating level 2 - move notes from level 1
+      notesToMove = await Note.findAll({
+        where: {
+          userId,
+          noteCategoryId: categoryId,
+          noteSubCategoryId1: parentSubCategoryId,
+          noteSubCategoryId2: null
+        }
+      });
+    } else if (newLevel === 3 && parentSubCategoryId) {
+      // Creating level 3 - move notes from level 2
+      const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId);
+      if (parentSub) {
+        notesToMove = await Note.findAll({
+          where: {
+            userId,
+            noteCategoryId: categoryId,
+            noteSubCategoryId1: parentSub.parentSubCategoryId,
+            noteSubCategoryId2: parentSubCategoryId,
+            noteSubCategoryId3: null
+          }
+        });
+      }
+    } else if (newLevel === 4 && parentSubCategoryId) {
+      // Creating level 4 - move notes from level 3
+      const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId);
+      if (parentSub) {
+        const grandparentSub = await NoteSubCategory.findByPk(parentSub.parentSubCategoryId);
+        if (grandparentSub) {
+          notesToMove = await Note.findAll({
+            where: {
+              userId,
+              noteCategoryId: categoryId,
+              noteSubCategoryId1: grandparentSub.parentSubCategoryId,
+              noteSubCategoryId2: grandparentSub.id,
+              noteSubCategoryId3: parentSubCategoryId,
+              noteSubCategoryId4: null
+            }
+          });
+        }
+      }
+    } else if (newLevel === 5 && parentSubCategoryId) {
+      // Creating level 5 - move notes from level 4
+      const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId);
+      if (parentSub) {
+        const grandparentSub = await NoteSubCategory.findByPk(parentSub.parentSubCategoryId);
+        if (grandparentSub) {
+          const greatGrandparentSub = await NoteSubCategory.findByPk(grandparentSub.parentSubCategoryId);
+          if (greatGrandparentSub) {
+            notesToMove = await Note.findAll({
+              where: {
+                userId,
+                noteCategoryId: categoryId,
+                noteSubCategoryId1: greatGrandparentSub.parentSubCategoryId,
+                noteSubCategoryId2: greatGrandparentSub.id,
+                noteSubCategoryId3: grandparentSub.id,
+                noteSubCategoryId4: parentSubCategoryId,
+                noteSubCategoryId5: null
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // If there are notes to move, create "Nieprzypisane" folder and move them
+    if (notesToMove.length > 0) {
+      // Check if "Nieprzypisane" folder already exists
+      let unassignedFolder = await NoteSubCategory.findOne({
+        where: {
+          userId,
+          categoryId,
+          parentSubCategoryId: parentSubCategoryId || null,
+          name: 'Nieprzypisane',
+          level: newLevel,
+          isActive: true
+        }
+      });
+
+      // Create if doesn't exist
+      if (!unassignedFolder) {
+        unassignedFolder = await NoteSubCategory.create({
+          userId,
+          categoryId,
+          parentSubCategoryId: parentSubCategoryId || null,
+          level: newLevel,
+          name: 'Nieprzypisane',
+          isActive: true,
+          isUnlocked: newLevel < 3
+        });
+      }
+
+      // Move all notes to "Nieprzypisane" folder
+      for (const note of notesToMove) {
+        const updates = {};
+        
+        // Set the appropriate level subcategory ID
+        updates[`noteSubCategoryId${newLevel}`] = unassignedFolder.id;
+        
+        await note.update(updates);
+      }
+
+      console.log(`✅ Moved ${notesToMove.length} notes to "Nieprzypisane" folder at level ${newLevel}`);
+    }
+  } catch (error) {
+    console.error('Error in handleNotesAutoMove:', error);
+    // Don't throw - we don't want to break subcategory creation
+  }
+};
+
 // Pobierz subkategorie (z możliwością filtrowania po kategorii i parent)
 exports.getSubCategories = async (req, res) => {
   try {
@@ -223,6 +349,9 @@ exports.createSubCategory = async (req, res) => {
       isActive: true,
       isUnlocked: calculatedLevel < 3 // Poziomy 1-2 odblokowane domyślnie
     });
+
+    // Automatically move notes to "Nieprzypisane" folder when creating subcategory
+    await handleNotesAutoMove(req.user.id, categoryId, parentSubCategoryId, calculatedLevel, subcategory.id);
 
     // Pobierz pełne dane z relacjami
     const fullSubCategory = await NoteSubCategory.findByPk(subcategory.id, {

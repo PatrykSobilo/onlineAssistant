@@ -1,9 +1,183 @@
 const { Note, NoteCategory, NoteSubCategory, User } = require('../models');
 const { Op } = require('sequelize');
 
+// Helper function to auto-organize notes (move to "Nieprzypisane" if needed)
+const autoOrganizeNotes = async (userId) => {
+  try {
+    console.log('🔄 Starting auto-organization of notes...');
+    
+    // Get all user's categories
+    const categories = await NoteCategory.findAll({
+      where: { userId, isActive: true }
+    });
+
+    for (const category of categories) {
+      // Get all subcategories for this category
+      const subcategories = await NoteSubCategory.findAll({
+        where: {
+          userId,
+          categoryId: category.id,
+          isActive: true
+        },
+        order: [['level', 'ASC'], ['id', 'ASC']]
+      });
+
+      // Group subcategories by parent and level
+      const subsByParent = {};
+      subcategories.forEach(sub => {
+        const parentKey = sub.parentSubCategoryId || 'root';
+        if (!subsByParent[parentKey]) {
+          subsByParent[parentKey] = [];
+        }
+        subsByParent[parentKey].push(sub);
+      });
+
+      // Check category root level (level 0 - no subcategory at all)
+      const hasLevel1 = subcategories.some(s => s.level === 1);
+      if (hasLevel1) {
+        const rootNotes = await Note.findAll({
+          where: {
+            userId,
+            noteCategoryId: category.id,
+            noteSubCategoryId1: null
+          }
+        });
+
+        if (rootNotes.length > 0) {
+          console.log(`Found ${rootNotes.length} notes at category root "${category.name}"`);
+          
+          let unassigned = await NoteSubCategory.findOne({
+            where: {
+              userId,
+              categoryId: category.id,
+              parentSubCategoryId: null,
+              name: 'Nieprzypisane',
+              level: 1,
+              isActive: true
+            }
+          });
+
+          if (!unassigned) {
+            unassigned = await NoteSubCategory.create({
+              userId,
+              categoryId: category.id,
+              parentSubCategoryId: null,
+              level: 1,
+              name: 'Nieprzypisane',
+              isActive: true,
+              isUnlocked: true
+            });
+            console.log(`Created "Nieprzypisane" folder at level 1 in category "${category.name}"`);
+          }
+
+          for (const note of rootNotes) {
+            await note.update({ noteSubCategoryId1: unassigned.id });
+          }
+          console.log(`✅ Moved ${rootNotes.length} notes to "Nieprzypisane" at level 1`);
+        }
+      }
+
+      // Check each subcategory level (1-4) if it has children and notes
+      for (const sub of subcategories) {
+        if (sub.level >= 5) continue; // Level 5 is the deepest, can't go lower
+
+        // Check if this subcategory has children
+        const children = subcategories.filter(s => s.parentSubCategoryId === sub.id);
+        
+        if (children.length > 0) {
+          // This folder has children, so find notes at this level
+          const whereClause = {
+            userId,
+            noteCategoryId: category.id
+          };
+
+          // Build proper where clause for finding notes at this exact level
+          if (sub.level === 1) {
+            whereClause.noteSubCategoryId1 = sub.id;
+            whereClause.noteSubCategoryId2 = null;
+          } else if (sub.level === 2) {
+            whereClause.noteSubCategoryId2 = sub.id;
+            whereClause.noteSubCategoryId3 = null;
+          } else if (sub.level === 3) {
+            whereClause.noteSubCategoryId3 = sub.id;
+            whereClause.noteSubCategoryId4 = null;
+          } else if (sub.level === 4) {
+            whereClause.noteSubCategoryId4 = sub.id;
+            whereClause.noteSubCategoryId5 = null;
+          }
+
+          const notesAtThisLevel = await Note.findAll({ where: whereClause });
+
+          if (notesAtThisLevel.length > 0) {
+            console.log(`Found ${notesAtThisLevel.length} notes at level ${sub.level} in "${sub.name}" (has children)`);
+            
+            // Create or find "Nieprzypisane" folder as a child
+            let unassigned = await NoteSubCategory.findOne({
+              where: {
+                userId,
+                categoryId: category.id,
+                parentSubCategoryId: sub.id,
+                name: 'Nieprzypisane',
+                level: sub.level + 1,
+                isActive: true
+              }
+            });
+
+            if (!unassigned) {
+              unassigned = await NoteSubCategory.create({
+                userId,
+                categoryId: category.id,
+                parentSubCategoryId: sub.id,
+                level: sub.level + 1,
+                name: 'Nieprzypisane',
+                isActive: true,
+                isUnlocked: sub.level + 1 < 3
+              });
+              console.log(`Created "Nieprzypisane" folder at level ${sub.level + 1} under "${sub.name}"`);
+            }
+
+            // Move all notes to "Nieprzypisane" folder
+            for (const note of notesAtThisLevel) {
+              const updates = {};
+              
+              // When moving to next level, preserve all previous level assignments
+              // and add the new level assignment
+              if (sub.level === 1) {
+                updates.noteSubCategoryId1 = sub.id; // Keep level 1
+                updates.noteSubCategoryId2 = unassigned.id; // Add level 2
+              } else if (sub.level === 2) {
+                updates.noteSubCategoryId2 = sub.id; // Keep level 2
+                updates.noteSubCategoryId3 = unassigned.id; // Add level 3
+              } else if (sub.level === 3) {
+                updates.noteSubCategoryId3 = sub.id; // Keep level 3
+                updates.noteSubCategoryId4 = unassigned.id; // Add level 4
+              } else if (sub.level === 4) {
+                updates.noteSubCategoryId4 = sub.id; // Keep level 4
+                updates.noteSubCategoryId5 = unassigned.id; // Add level 5
+              }
+              
+              await note.update(updates);
+            }
+            
+            console.log(`✅ Moved ${notesAtThisLevel.length} notes from level ${sub.level} to "Nieprzypisane" at level ${sub.level + 1}`);
+          }
+        }
+      }
+    }
+    
+    console.log('✅ Auto-organization completed');
+  } catch (error) {
+    console.error('❌ Error in autoOrganizeNotes:', error);
+    // Don't throw - we don't want to break the main request
+  }
+};
+
 // Pobierz wszystkie notatki użytkownika z filtrowaniem
 exports.getNotes = async (req, res) => {
   try {
+    // Auto-organize notes before fetching
+    await autoOrganizeNotes(req.user.id);
+
     const { 
       categoryId, 
       subCategoryId1, 
