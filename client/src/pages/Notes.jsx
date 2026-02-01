@@ -549,6 +549,30 @@ const Notes = () => {
     }
   };
 
+  const handleAiMergeNotes = async (categoryId) => {
+    if (!confirm('🔗 Ta funkcja przeanalizuje wszystkie notatki z tej kategorii i spróbuje połączyć te, które dotyczą tego samego tematu.\n\nStare notatki zostaną usunięte, a w ich miejsce powstanie jedna połączona.\n\nCzy chcesz kontynuować?')) return;
+
+    try {
+      setOrganizingCategory(categoryId);
+      const response = await api.post('/notes/ai-merge', { categoryId });
+      
+      if (response.data.mergedCount === 0) {
+        alert('ℹ️ ' + response.data.message);
+      } else {
+        alert(`✅ ${response.data.message}\nUtworzono: ${response.data.groupsCreated} połączonych notatek`);
+      }
+      
+      // Refresh data
+      await fetchNotes();
+      await fetchSubcategories();
+    } catch (err) {
+      console.error('Error merging notes:', err);
+      alert('❌ Błąd podczas łączenia notatek: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setOrganizingCategory(null);
+    }
+  };
+
   const openViewModal = (note) => {
     setViewingNote(note);
   };
@@ -692,6 +716,22 @@ const Notes = () => {
                         title="Użyj AI do reorganizacji WSZYSTKICH notatek w tej kategorii"
                       >
                         {organizingCategory === categoryId ? '⏳' : '✨ Przeorganizuj'}
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAiMergeNotes(categoryId);
+                        }}
+                        disabled={organizingCategory === categoryId}
+                        style={{
+                          ...styles.aiMergeButton,
+                          opacity: organizingCategory === categoryId ? 0.6 : 1,
+                          cursor: organizingCategory === categoryId ? 'wait' : 'pointer'
+                        }}
+                        title="Użyj AI do połączenia podobnych notatek w tej kategorii"
+                      >
+                        {organizingCategory === categoryId ? '⏳' : '🔗 Połącz Notatki'}
                       </button>
                     </div>
                   )}
@@ -1120,6 +1160,18 @@ const styles = {
   aiReorganizeButton: {
     padding: '0.4rem 0.75rem',
     backgroundColor: '#EC4899',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap'
+  },
+  aiMergeButton: {
+    padding: '0.4rem 0.75rem',
+    backgroundColor: '#10B981',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
