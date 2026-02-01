@@ -13,6 +13,8 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [manualInput, setManualInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
+  const [showFileImport, setShowFileImport] = useState(false);
+  const [importedText, setImportedText] = useState('');
   const [lastTranscriptChange, setLastTranscriptChange] = useState(Date.now());
   const [notesCreatedCount, setNotesCreatedCount] = useState(0);
   const [showSuccessBadge, setShowSuccessBadge] = useState(false);
@@ -78,6 +80,72 @@ const Dashboard = () => {
 
     return () => clearInterval(intervalId);
   }, [isMicActive, transcript, isAnalyzing]);
+
+  // Parse transcription files (VTT, SRT, SBV, TXT)
+  const parseTranscriptionFile = (content, fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+
+    if (extension === 'txt') {
+      return content;
+    }
+
+    // Remove VTT/SRT/SBV timestamps and formatting
+    let cleaned = content;
+
+    // Remove WEBVTT header
+    cleaned = cleaned.replace(/^WEBVTT\s*/m, '');
+
+    // Remove timestamp lines (00:00:00.000 --> 00:00:05.000)
+    cleaned = cleaned.replace(/\d{2}:\d{2}:\d{2}[.,]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[.,]\d{3}/g, '');
+
+    // Remove sequence numbers (1, 2, 3, etc. on separate lines)
+    cleaned = cleaned.replace(/^\d+$/gm, '');
+
+    // Remove speaker tags like <v Speaker Name>
+    cleaned = cleaned.replace(/<v [^>]+>/gi, '');
+
+    // Remove other HTML-like tags
+    cleaned = cleaned.replace(/<[^>]+>/g, '');
+
+    // Remove multiple empty lines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+    // Trim whitespace
+    cleaned = cleaned.trim();
+
+    return cleaned;
+  };
+
+  const handleFileImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check file extension
+    const fileName = file.name.toLowerCase();
+    const validExtensions = ['.txt', '.vtt', '.srt', '.sbv'];
+    const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!isValid) {
+      setError('Nieprawidłowy format pliku. Obsługiwane: .txt, .vtt, .srt, .sbv');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      const parsedText = parseTranscriptionFile(content, file.name);
+      
+      // Auto-submit to AI immediately
+      handleAskAI(parsedText);
+    };
+    reader.onerror = () => {
+      setError('Błąd podczas wczytywania pliku');
+    };
+    reader.readAsText(file);
+
+    // Reset the input so the same file can be selected again
+    event.target.value = '';
+  };
 
   const handleAskAI = async (textToSend = null) => {
     const messageToSend = textToSend || transcript;
@@ -186,7 +254,8 @@ const Dashboard = () => {
         <div style={styles.inputSection}>
           <h3 style={styles.sectionTitle}>Wybierz źródła audio:</h3>
           
-          <div style={styles.audioSourcesGrid}>
+          {/* Top row - 2 buttons */}
+          <div style={styles.audioSourcesGridTop}>
             {/* Microphone button */}
             <div style={styles.sourceCard}>
               <button
@@ -202,7 +271,7 @@ const Dashboard = () => {
                   {isMicActive ? '🔴' : '🎤'}
                 </div>
                 <div style={styles.sourceLabel}>
-                  {isMicActive ? 'STOP RECORDING' : 'START RECORDING'}
+                  {isMicActive ? 'STOP RECORDING' : 'Notatka głosowa'}
                 </div>
                 <div style={styles.sourceDescription}>
                   Mikrofon
@@ -226,7 +295,7 @@ const Dashboard = () => {
                     📝
                   </div>
                   <div style={styles.sourceLabel}>
-                    INPUT MESSAGE
+                    Notatka tekstowa
                   </div>
                   <div style={styles.sourceDescription}>
                     Wpisz tekst
@@ -234,6 +303,30 @@ const Dashboard = () => {
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Bottom row - 1 button */}
+          <div style={styles.audioSourcesGridBottom}>
+            {/* File import button */}
+            <div style={styles.sourceCard}>
+              <label style={styles.sourceButton}>
+                <input
+                  type="file"
+                  accept=".txt,.vtt,.srt,.sbv"
+                  onChange={handleFileImport}
+                  style={{ display: 'none' }}
+                />
+                <div style={styles.sourceIcon}>
+                  📄
+                </div>
+                <div style={styles.sourceLabel}>
+                  Importuj Transkrypcję
+                </div>
+                <div style={styles.sourceDescription}>
+                  .txt, .vtt, .srt, .sbv
+                </div>
+              </label>
+            </div>
           </div>
 
           {showTextInput && (
@@ -273,6 +366,8 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+
+
         </div>
         
         <div style={styles.transcriptionContainer}>
@@ -396,17 +491,25 @@ const styles = {
     textAlign: 'center',
     fontWeight: '600'
   },
-  audioSourcesGrid: {
+  audioSourcesGridTop: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '1.5rem',
-    marginBottom: '2rem'
+    maxWidth: '700px',
+    margin: '0 auto 1.5rem auto'
+  },
+  audioSourcesGridBottom: {
+    display: 'flex',
+    justifyContent: 'center',
+    maxWidth: '700px',
+    margin: '0 auto'
   },
   sourceCard: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '0.5rem'
+    gap: '0.5rem',
+    flex: 1
   },
   sourceButton: {
     width: '100%',
