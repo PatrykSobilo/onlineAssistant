@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import TranscriptionDisplay from '../components/TranscriptionDisplay';
@@ -7,12 +7,15 @@ import api from '../services/api';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
-  const [language, setLanguage] = useState('en-US');
+  const [language, setLanguage] = useState('pl-PL');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResponse, setAiResponse] = useState(null);
   const [error, setError] = useState(null);
   const [manualInput, setManualInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
+  const [lastTranscriptChange, setLastTranscriptChange] = useState(Date.now());
+  const [notesCreatedCount, setNotesCreatedCount] = useState(0);
+  const [showSuccessBadge, setShowSuccessBadge] = useState(false);
   
   const {
     isMicActive,
@@ -24,6 +27,57 @@ const Dashboard = () => {
     stopAll,
     resetTranscript
   } = useSpeechRecognition(language);
+
+  // Track when transcript changes (user is speaking)
+  useEffect(() => {
+    if (transcript && transcript.trim().length > 0) {
+      setLastTranscriptChange(Date.now());
+      console.log('📝 Transcript updated:', transcript.substring(0, 50) + '...');
+    }
+  }, [transcript]);
+
+  // Also track interim transcript changes
+  useEffect(() => {
+    if (interimTranscript && interimTranscript.trim().length > 0) {
+      setLastTranscriptChange(Date.now());
+    }
+  }, [interimTranscript]);
+
+  // Silence detection - auto-send after 10 seconds of no speech
+  useEffect(() => {
+    if (!isMicActive || !transcript || transcript.trim().length < 10 || isAnalyzing) {
+      return;
+    }
+
+    const silenceCheckInterval = setInterval(() => {
+      const timeSinceLastChange = Date.now() - lastTranscriptChange;
+      console.log(`🔍 Checking silence: ${timeSinceLastChange}ms since last change, transcript length: ${transcript.trim().length}`);
+      
+      if (timeSinceLastChange >= 10000 && transcript.trim().length >= 10) {
+        console.log('🔇 Silence detected for 10s, auto-processing:', transcript);
+        handleAskAI(transcript);
+        resetTranscript();
+        setLastTranscriptChange(Date.now()); // Reset timer
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(silenceCheckInterval);
+  }, [isMicActive, transcript, lastTranscriptChange, isAnalyzing]);
+
+  // Fallback: Auto-process every minute (in case silence detection doesn't trigger)
+  useEffect(() => {
+    if (!isMicActive) return;
+
+    const intervalId = setInterval(() => {
+      if (transcript && transcript.trim().length > 10 && !isAnalyzing) {
+        console.log('⏰ Auto-processing transcript (1 min fallback):', transcript);
+        handleAskAI(transcript);
+        resetTranscript();
+      }
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(intervalId);
+  }, [isMicActive, transcript, isAnalyzing]);
 
   const handleAskAI = async (textToSend = null) => {
     const messageToSend = textToSend || transcript;
@@ -45,9 +99,15 @@ const Dashboard = () => {
       setAiResponse(`✅ Notatka utworzona!\n\n${response.data.note.content}\n\nKategoria: ${response.data.note.category?.name || 'Brak'}`);
       console.log('AI Response:', response.data);
       
+      // Update counter and show badge
+      setNotesCreatedCount(prev => prev + 1);
+      setShowSuccessBadge(true);
+      setTimeout(() => setShowSuccessBadge(false), 2000);
+      
       // Reset after successful creation
       setTimeout(() => {
-        handleReset();
+        setAiResponse(null);
+        setError(null);
       }, 3000);
     } catch (err) {
       console.error('AI note creation failed:', err);
@@ -83,11 +143,24 @@ const Dashboard = () => {
           <div style={styles.hero}>
             <h2 style={styles.title}>Witaj w Asystencie! 🎉</h2>
             <p style={styles.subtitle}>Twój asystent AI z rozpoznawaniem mowy jest gotowy</p>
+            
+            {notesCreatedCount > 0 && (
+              <div style={styles.notesCounter}>
+                📝 Utworzono notatek: <strong>{notesCreatedCount}</strong>
+                {showSuccessBadge && <span style={styles.successBadge}>✨ Nowa!</span>}
+              </div>
+            )}
           </div>
           
           {!isSupported && (
             <div style={styles.alert}>
               ⚠️ Twoja przeglądarka nie obsługuje rozpoznawania mowy. Użyj Chrome, Edge lub Safari.
+            </div>
+          )}
+
+          {isMicActive && (
+            <div style={styles.autoProcessAlert}>
+              🤖 Automatyczne przetwarzanie włączone - notatka zostanie utworzona po 10 sekundach ciszy lub po minucie
             </div>
           )}
           
@@ -271,6 +344,28 @@ const styles = {
     fontSize: '1.125rem',
     color: '#666'
   },
+  notesCounter: {
+    marginTop: '1rem',
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '20px',
+    fontSize: '1rem',
+    color: '#0369a1',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+  },
+  successBadge: {
+    marginLeft: '0.5rem',
+    padding: '0.25rem 0.75rem',
+    backgroundColor: '#10B981',
+    color: 'white',
+    borderRadius: '12px',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    animation: 'slideIn 0.3s ease-out'
+  },
   languageSelector: {
     display: 'flex',
     alignItems: 'center',
@@ -441,6 +536,17 @@ const styles = {
     marginBottom: '2rem',
     textAlign: 'center',
     border: '1px solid #ffeaa7'
+  },
+  autoProcessAlert: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    padding: '1rem',
+    borderRadius: '8px',
+    marginBottom: '2rem',
+    textAlign: 'center',
+    fontWeight: '600',
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+    animation: 'pulse 2s ease-in-out infinite'
   },
   actions: {
     display: 'flex',
