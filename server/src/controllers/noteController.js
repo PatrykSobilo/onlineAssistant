@@ -1,5 +1,6 @@
 const { Note, NoteCategory, NoteSubCategory, User } = require('../models');
 const { Op } = require('sequelize');
+const aiService = require('../services/aiService');
 
 // Helper function to auto-organize notes (move to "Nieprzypisane" if needed)
 const autoOrganizeNotes = async (userId) => {
@@ -697,5 +698,218 @@ exports.removeTag = async (req, res) => {
   } catch (error) {
     console.error('Error removing tag:', error);
     res.status(500).json({ message: 'Błąd podczas usuwania tagu' });
+  }
+};
+
+// Helper function for AI-based note organization
+const organizeNotesWithAI = async (userId, categoryId, includeAllNotes = false) => {
+  // Get category info
+  const category = await NoteCategory.findOne({
+    where: { id: categoryId, userId, isActive: true }
+  });
+
+  if (!category) {
+    throw new Error('Category not found');
+  }
+
+  // Get all subcategories for this category
+  const subcategories = await NoteSubCategory.findAll({
+    where: {
+      userId,
+      categoryId,
+      isActive: true
+    },
+    order: [['level', 'ASC'], ['parentSubCategoryId', 'ASC'], ['id', 'ASC']]
+  });
+
+  // Build category structure for AI
+  const buildStructure = (parentId = null, level = 1) => {
+    const children = subcategories.filter(s => s.parentSubCategoryId === parentId && s.level === level);
+    return children.map(sub => ({
+      id: sub.id,
+      name: sub.name,
+      level: sub.level,
+      children: sub.level < 5 ? buildStructure(sub.id, sub.level + 1) : []
+    }));
+  };
+
+  const categoryStructure = buildStructure();
+
+  // Get notes to organize
+  let notesToOrganize = [];
+  
+  if (includeAllNotes) {
+    // Get ALL notes from this category
+    const allNotes = await Note.findAll({
+      where: {
+        userId,
+        noteCategoryId: categoryId
+      }
+    });
+    
+    notesToOrganize = allNotes.map(n => ({
+      id: n.id,
+      content: n.content.substring(0, 500), // Limit content length for AI
+      currentSubcategoryId: n.noteSubCategoryId5 || n.noteSubCategoryId4 || n.noteSubCategoryId3 || n.noteSubCategoryId2 || n.noteSubCategoryId1
+    }));
+  } else {
+    // Get only notes from "Nieprzypisane" folders
+    const unassignedFolders = subcategories.filter(s => s.name === 'Nieprzypisane');
+    
+    for (const folder of unassignedFolders) {
+      const whereClause = {
+        userId,
+        noteCategoryId: categoryId
+      };
+      whereClause[`noteSubCategoryId${folder.level}`] = folder.id;
+
+      const notes = await Note.findAll({ where: whereClause });
+      notesToOrganize.push(...notes.map(n => ({
+        id: n.id,
+        content: n.content.substring(0, 500),
+        level: folder.level
+      })));
+    }
+  }
+
+  if (notesToOrganize.length === 0) {
+    return {
+      message: includeAllNotes ? 'No notes found in this category' : 'No notes in "Nieprzypisane" folders',
+      organized: 0,
+      total: 0
+    };
+  }
+
+  // Build prompt for AI
+  const prompt = `You are organizing notes into a hierarchical category structure.
+
+Category: ${category.name}
+
+Category Structure (hierarchical subcategories):
+${JSON.stringify(categoryStructure, null, 2)}
+
+Notes to organize${includeAllNotes ? ' (all notes from category)' : ' (from "Nieprzypisane" folders)'}:
+${notesToOrganize.map((n, idx) => `${idx + 1}. Note ID: ${n.id}\nContent: ${n.content}\n`).join('\n')}
+
+Task: For each note, assign it to the MOST SPECIFIC (deepest level) subcategory that matches its content. Return ONLY a JSON array with this format:
+[
+  {"noteId": <note_id>, "subcategoryId": <best_matching_subcategory_id>}
+]
+
+Rules:
+- Choose the deepest/most specific subcategory that fits
+- If no good match exists, use the closest parent subcategory
+- Return ONLY valid JSON, no explanations
+- Include all notes in the response`;
+
+  console.log('🤖 Sending to AI for organization...');
+  const aiResponse = await aiService.chatWithAI(prompt);
+  console.log('🤖 AI Response:', aiResponse);
+
+  // Parse AI response
+  let assignments;
+  try {
+    // Extract JSON from response (AI might wrap it in markdown)
+    const jsonMatch = aiResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (jsonMatch) {
+      assignments = JSON.parse(jsonMatch[0]);
+    } else {
+      assignments = JSON.parse(aiResponse);
+    }
+  } catch (parseError) {
+    console.error('Failed to parse AI response:', parseError);
+    throw new Error('AI response could not be parsed: ' + aiResponse.substring(0, 500));
+  }
+
+  // Apply assignments
+  let organized = 0;
+  for (const assignment of assignments) {
+    try {
+      const note = await Note.findOne({
+        where: { id: assignment.noteId, userId }
+      });
+
+      if (!note) continue;
+
+      const targetSubcategory = subcategories.find(s => s.id === assignment.subcategoryId);
+      if (!targetSubcategory) continue;
+
+      // Build full path to target subcategory
+      const updates = {};
+      let current = targetSubcategory;
+      const path = [current];
+
+      // Build path from target to root
+      while (current.parentSubCategoryId) {
+        current = subcategories.find(s => s.id === current.parentSubCategoryId);
+        if (current) path.unshift(current);
+        else break;
+      }
+
+      // Set all levels
+      path.forEach((sub, idx) => {
+        updates[`noteSubCategoryId${idx + 1}`] = sub.id;
+      });
+
+      // Clear remaining levels
+      for (let i = path.length + 1; i <= 5; i++) {
+        updates[`noteSubCategoryId${i}`] = null;
+      }
+
+      await note.update(updates);
+      organized++;
+    } catch (err) {
+      console.error(`Error organizing note ${assignment.noteId}:`, err);
+    }
+  }
+
+  return {
+    message: `Successfully organized ${organized} notes`,
+    organized,
+    total: notesToOrganize.length
+  };
+};
+
+// AI-based organization of "Nieprzypisane" notes
+exports.aiOrganizeUnassigned = async (req, res) => {
+  try {
+    const { categoryId } = req.body;
+    const userId = req.user.id;
+
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Category ID is required' });
+    }
+
+    const result = await organizeNotesWithAI(userId, categoryId, false);
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error in AI organization:', error);
+    res.status(500).json({ 
+      message: 'Error organizing notes',
+      error: error.message 
+    });
+  }
+};
+
+// AI-based reorganization of ALL notes in category
+exports.aiReorganizeAll = async (req, res) => {
+  try {
+    const { categoryId } = req.body;
+    const userId = req.user.id;
+
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Category ID is required' });
+    }
+
+    const result = await organizeNotesWithAI(userId, categoryId, true);
+    res.json(result);
+
+  } catch (error) {
+    console.error('Error in AI reorganization:', error);
+    res.status(500).json({ 
+      message: 'Error reorganizing notes',
+      error: error.message 
+    });
   }
 };

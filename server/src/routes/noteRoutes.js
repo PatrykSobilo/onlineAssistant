@@ -30,4 +30,10 @@ router.post('/:id/tags', noteController.addTag);
 // DELETE /api/notes/:id/tags - Usuń tag z notatki
 router.delete('/:id/tags', noteController.removeTag);
 
+// POST /api/notes/ai-organize - AI organization of unassigned notes
+router.post('/ai-organize', noteController.aiOrganizeUnassigned);
+
+// POST /api/notes/ai-reorganize - AI reorganization of all notes in category
+router.post('/ai-reorganize', noteController.aiReorganizeAll);
+
 module.exports = router;
