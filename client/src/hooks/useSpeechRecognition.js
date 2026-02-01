@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 
 const useSpeechRecognition = (language = 'en-US') => {
-  const [isListening, setIsListening] = useState(false);
+  const [isMicActive, setIsMicActive] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
+  
   const recognitionRef = useRef(null);
-  const isListeningRef = useRef(false);
+  const isRecognitionRunningRef = useRef(false);
+  const micStreamRef = useRef(null);
 
   useEffect(() => {
     // Check if browser supports Web Speech API
@@ -60,16 +62,14 @@ const useSpeechRecognition = (language = 'en-US') => {
       
       // Handle end
       recognitionRef.current.onend = () => {
-        console.log('Recognition ended, isListening:', isListeningRef.current);
-        if (isListeningRef.current) {
-          // Restart if still supposed to be listening
+        console.log('Recognition ended, should still run:', isRecognitionRunningRef.current);
+        if (isRecognitionRunningRef.current) {
+          // Restart if we still have active sources
           console.log('Restarting recognition...');
           try {
             recognitionRef.current.start();
           } catch (error) {
             console.error('Error restarting recognition:', error);
-            setIsListening(false);
-            isListeningRef.current = false;
           }
         }
       };
@@ -79,32 +79,84 @@ const useSpeechRecognition = (language = 'en-US') => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
   }, [language]);
 
-  const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      setTranscript('');
-      setInterimTranscript('');
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        isListeningRef.current = true;
-        console.log('🎤 Started listening...');
-      } catch (error) {
-        console.error('Error starting recognition:', error);
-      }
+  // Start/stop microphone
+  const toggleMicrophone = async () => {
+    if (isMicActive) {
+      stopMicrophone();
+    } else {
+      await startMicrophone();
     }
   };
 
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      isListeningRef.current = false;
-      recognitionRef.current.stop();
-      setIsListening(false);
-      setInterimTranscript('');
-      console.log('🛑 Stopped listening');
+  const startMicrophone = async () => {
+    try {
+      console.log('🎤 Starting microphone...');
+      
+      // Get microphone stream
+      micStreamRef.current = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+
+      setIsMicActive(true);
+      await ensureRecognitionRunning();
+      
+      console.log('✅ Microphone active');
+    } catch (error) {
+      console.error('Error starting microphone:', error);
+      alert('Nie udało się uruchomić mikrofonu: ' + error.message);
     }
+  };
+
+  const stopMicrophone = () => {
+    console.log('🛑 Stopping microphone...');
+    
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+    
+    setIsMicActive(false);
+    
+    if (isRecognitionRunningRef.current) {
+      isRecognitionRunningRef.current = false;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setInterimTranscript('');
+      console.log('🛑 Speech recognition stopped');
+    }
+    
+    console.log('✅ Microphone stopped');
+  };
+
+
+
+  // Ensure speech recognition is running when we have active sources
+  const ensureRecognitionRunning = async () => {
+    if (!recognitionRef.current || isRecognitionRunningRef.current) return;
+
+    try {
+      recognitionRef.current.start();
+      isRecognitionRunningRef.current = true;
+      console.log('🎙️ Speech recognition started');
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+    }
+  };
+
+  const stopAll = () => {
+    stopMicrophone();
+    setInterimTranscript('');
   };
 
   const resetTranscript = () => {
@@ -113,12 +165,13 @@ const useSpeechRecognition = (language = 'en-US') => {
   };
 
   return {
-    isListening,
+    isMicActive,
+    isListening: isMicActive,
     transcript,
     interimTranscript,
     isSupported,
-    startListening,
-    stopListening,
+    toggleMicrophone,
+    stopAll,
     resetTranscript
   };
 };

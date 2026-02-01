@@ -149,6 +149,20 @@ exports.deleteCategory = async (req, res) => {
       return res.status(404).json({ message: 'Kategoria nie została znaleziona' });
     }
 
+    // Sprawdź czy kategoria jest używana w notatkach
+    const notesCount = await Note.count({
+      where: {
+        userId: req.user.id,
+        noteCategoryId: req.params.id
+      }
+    });
+
+    if (notesCount > 0) {
+      return res.status(400).json({ 
+        message: `Nie można usunąć kategorii, ponieważ jest używana w ${notesCount} ${notesCount === 1 ? 'notatce' : 'notatkach'}. Najpierw usuń lub przenieś notatki.` 
+      });
+    }
+
     // Soft delete - oznacz jako nieaktywną
     await category.update({ isActive: false });
 

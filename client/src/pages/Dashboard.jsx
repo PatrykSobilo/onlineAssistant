@@ -1,7 +1,6 @@
 import { useContext, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
-import RecordButton from '../components/RecordButton';
 import TranscriptionDisplay from '../components/TranscriptionDisplay';
 import Navbar from '../components/Navbar';
 import api from '../services/api';
@@ -16,12 +15,13 @@ const Dashboard = () => {
   const [showTextInput, setShowTextInput] = useState(false);
   
   const {
+    isMicActive,
     isListening,
     transcript,
     interimTranscript,
     isSupported,
-    startListening,
-    stopListening,
+    toggleMicrophone,
+    stopAll,
     resetTranscript
   } = useSpeechRecognition(language);
 
@@ -52,6 +52,7 @@ const Dashboard = () => {
   };
 
   const handleReset = () => {
+    stopAll();
     resetTranscript();
     setAiResponse(null);
     setError(null);
@@ -85,8 +86,11 @@ const Dashboard = () => {
           )}
           
         <div style={styles.languageSelector}>
-          <label style={styles.label}>Language:</label>
-          <select 
+          <label htmlFor="language-select" style={styles.label}>Language:</label>
+          <select
+            id="language-select"
+            name="language"
+            title="Select language for speech recognition"
             value={language} 
             onChange={(e) => setLanguage(e.target.value)}
             disabled={isListening}
@@ -101,27 +105,59 @@ const Dashboard = () => {
           </select>
         </div>
         <div style={styles.inputSection}>
-          <div style={styles.buttonContainer}>
-            <RecordButton
-              isListening={isListening}
-              onStart={startListening}
-              onStop={stopListening}
-              disabled={!isSupported}
-            />
-          </div>
+          <h3 style={styles.sectionTitle}>Wybierz źródła audio:</h3>
           
-          <div style={styles.orDivider}>lub</div>
-          
-          {!showTextInput ? (
-            <div style={styles.buttonContainer}>
+          <div style={styles.audioSourcesGrid}>
+            {/* Microphone button */}
+            <div style={styles.sourceCard}>
               <button
-                onClick={() => setShowTextInput(true)}
-                style={styles.inputMessageButton}
+                onClick={toggleMicrophone}
+                disabled={!isSupported}
+                style={{
+                  ...styles.sourceButton,
+                  ...(isMicActive ? styles.sourceButtonActive : {}),
+                  ...(!isSupported ? styles.sourceButtonDisabled : {})
+                }}
               >
-                📝 INPUT MESSAGE
+                <div style={styles.sourceIcon}>
+                  {isMicActive ? '🔴' : '🎤'}
+                </div>
+                <div style={styles.sourceLabel}>
+                  {isMicActive ? 'STOP RECORDING' : 'START RECORDING'}
+                </div>
+                <div style={styles.sourceDescription}>
+                  Mikrofon
+                </div>
               </button>
+              {isMicActive && (
+                <div style={styles.activeIndicator}>
+                  ● Aktywne
+                </div>
+              )}
             </div>
-          ) : (
+
+            {/* Text input button */}
+            {!showTextInput && (
+              <div style={styles.sourceCard}>
+                <button
+                  onClick={() => setShowTextInput(true)}
+                  style={styles.sourceButton}
+                >
+                  <div style={styles.sourceIcon}>
+                    📝
+                  </div>
+                  <div style={styles.sourceLabel}>
+                    INPUT MESSAGE
+                  </div>
+                  <div style={styles.sourceDescription}>
+                    Wpisz tekst
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {showTextInput && (
             <div style={styles.textInputContainer}>
               <textarea
                 value={manualInput}
@@ -129,7 +165,6 @@ const Dashboard = () => {
                 placeholder="Wpisz swoją wiadomość tutaj..."
                 style={styles.textarea}
                 rows={4}
-                disabled={isListening}
                 autoFocus
               />
               <div style={styles.textInputActions}>
@@ -148,10 +183,10 @@ const Dashboard = () => {
                     setManualInput('');
                     setShowTextInput(false);
                   }}
-                  disabled={!manualInput.trim() || isAnalyzing || isListening}
+                  disabled={!manualInput.trim() || isAnalyzing}
                   style={{
                     ...styles.sendButton,
-                    ...(!manualInput.trim() || isAnalyzing || isListening ? styles.sendButtonDisabled : {})
+                    ...(!manualInput.trim() || isAnalyzing ? styles.sendButtonDisabled : {})
                   }}
                 >
                   {isAnalyzing ? '⏳ Wysyłanie...' : '🚀 Wyślij'}
@@ -253,17 +288,77 @@ const styles = {
   inputSection: {
     marginBottom: '2rem'
   },
+  sectionTitle: {
+    fontSize: '1.25rem',
+    color: '#333',
+    marginBottom: '1.5rem',
+    textAlign: 'center',
+    fontWeight: '600'
+  },
+  audioSourcesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '1.5rem',
+    marginBottom: '2rem'
+  },
+  sourceCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem'
+  },
+  sourceButton: {
+    width: '100%',
+    minHeight: '150px',
+    padding: '1.5rem',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '16px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem'
+  },
+  sourceButtonActive: {
+    backgroundColor: '#dc3545',
+    boxShadow: '0 6px 12px rgba(220,53,69,0.3)'
+  },
+  sourceButtonDisabled: {
+    backgroundColor: '#6c757d',
+    cursor: 'not-allowed',
+    opacity: 0.6
+  },
+  sourceIcon: {
+    fontSize: '2.5rem'
+  },
+  sourceLabel: {
+    fontSize: '1.125rem',
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  sourceDescription: {
+    fontSize: '0.875rem',
+    opacity: 0.9,
+    fontWeight: 'normal'
+  },
+  activeIndicator: {
+    color: '#28a745',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    marginTop: '0.25rem',
+    animation: 'pulse 2s ease-in-out infinite'
+  },
   buttonContainer: {
     display: 'flex',
     justifyContent: 'center',
     marginBottom: '1rem'
-  },
-  orDivider: {
-    textAlign: 'center',
-    fontSize: '1rem',
-    color: '#999',
-    margin: '1.5rem 0',
-    fontWeight: '500'
   },
   textInputContainer: {
     display: 'flex',

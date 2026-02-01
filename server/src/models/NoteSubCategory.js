@@ -78,7 +78,7 @@ User.hasMany(NoteSubCategory, { foreignKey: 'userId', as: 'noteSubCategories' })
 NoteSubCategory.belongsTo(User, { foreignKey: 'userId' });
 
 NoteCategory.hasMany(NoteSubCategory, { foreignKey: 'categoryId', as: 'subCategories' });
-NoteSubCategory.belongsTo(NoteCategory, { foreignKey: 'categoryId' });
+NoteSubCategory.belongsTo(NoteCategory, { foreignKey: 'categoryId', as: 'category' });
 
 // Self-referencing relationship for hierarchical subcategories
 NoteSubCategory.hasMany(NoteSubCategory, { 

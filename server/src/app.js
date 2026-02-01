@@ -10,6 +10,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const noteCategoryRoutes = require('./routes/noteCategoryRoutes');
 const noteSubCategoryRoutes = require('./routes/noteSubCategoryRoutes');
 const noteRoutes = require('./routes/noteRoutes');
+const discussionRoutes = require('./routes/discussionRoutes');
 
 dotenv.config();
 
@@ -34,7 +35,7 @@ app.get('/', (req, res) => {
     message: '🤖 Online Assistant API',
     status: 'running',
     version: '1.0.0',
-    database: 'MySQL with Sequelize'
+    database: 'MySQL with Sequelize (XAMPP)'
   });
 });
 
@@ -49,6 +50,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/categories', noteCategoryRoutes);
 app.use('/api/subcategories', noteSubCategoryRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/discussions', discussionRoutes);
 
 // 404 Handler
 app.use((req, res) => {

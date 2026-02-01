@@ -4,6 +4,8 @@ const UserSettings = require('./UserSettings');
 const NoteCategory = require('./NoteCategory');
 const NoteSubCategory = require('./NoteSubCategory');
 const Note = require('./Note');
+const Discussion = require('./Discussion');
+const Message = require('./Message');
 
 // Define additional relationships between Note and Categories
 Note.belongsTo(NoteCategory, { foreignKey: 'noteCategoryId', as: 'category' });
@@ -14,6 +16,13 @@ Note.belongsTo(NoteSubCategory, { foreignKey: 'noteSubCategoryId2', as: 'subCate
 Note.belongsTo(NoteSubCategory, { foreignKey: 'noteSubCategoryId3', as: 'subCategory3' });
 Note.belongsTo(NoteSubCategory, { foreignKey: 'noteSubCategoryId4', as: 'subCategory4' });
 Note.belongsTo(NoteSubCategory, { foreignKey: 'noteSubCategoryId5', as: 'subCategory5' });
+
+// Discussion relationships
+Discussion.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(Discussion, { foreignKey: 'userId', as: 'discussions' });
+
+Discussion.hasMany(Message, { foreignKey: 'discussionId', as: 'messages' });
+Message.belongsTo(Discussion, { foreignKey: 'discussionId', as: 'discussion' });
 
 // Sync all models
 const syncDatabase = async () => {
@@ -32,5 +41,7 @@ module.exports = {
   NoteCategory,
   NoteSubCategory,
   Note,
+  Discussion,
+  Message,
   syncDatabase
 };

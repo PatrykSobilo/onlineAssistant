@@ -244,7 +244,12 @@ exports.createSubCategory = async (req, res) => {
     res.status(201).json(fullSubCategory);
   } catch (error) {
     console.error('Error creating subcategory:', error);
-    res.status(500).json({ message: 'Błąd podczas tworzenia subkategorii' });
+    console.error('Error details:', error.message);
+    console.error('Request body:', req.body);
+    res.status(500).json({ 
+      message: 'Błąd podczas tworzenia subkategorii',
+      error: error.message 
+    });
   }
 };
 

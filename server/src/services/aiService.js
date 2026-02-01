@@ -1,5 +1,4 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { searchWeb } = require('./searchService');
 
 exports.chatWithAI = async (userMessage) => {
   try {
@@ -19,37 +18,8 @@ exports.chatWithAI = async (userMessage) => {
       model: 'gemini-2.5-flash'
     });
 
-    // Check if user is asking for current/real-time information
-    const needsSearch = /\b(current|latest|today|now|recent|what is|weather|news|price)\b/i.test(userMessage);
-    
-    let prompt = userMessage;
-    
-    if (needsSearch) {
-      console.log('User needs real-time info, searching web...');
-      try {
-        const searchResults = await searchWeb(userMessage);
-        
-        // Add search results to the prompt
-        const searchContext = searchResults.map((result, idx) => 
-          `[${idx + 1}] ${result.title}\n${result.description}\nSource: ${result.url}`
-        ).join('\n\n');
-        
-        prompt = `User question: ${userMessage}
-
-Here are some recent search results that might help answer this question:
-
-${searchContext}
-
-Please use the above information to provide an accurate, up-to-date answer. Cite your sources when relevant.`;
-        
-        console.log('Added search context to prompt');
-      } catch (searchError) {
-        console.error('Search failed, continuing without web data:', searchError.message);
-      }
-    }
-
     // Generate response
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent(userMessage);
     const response = await result.response;
     const text = response.text();
 

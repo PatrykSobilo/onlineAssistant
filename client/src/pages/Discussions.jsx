@@ -11,9 +11,6 @@ const Discussions = () => {
   const [sending, setSending] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [useNotesContext, setUseNotesContext] = useState(true);
-  const [usedNotes, setUsedNotes] = useState([]);
-  const [showUsedNotes, setShowUsedNotes] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -70,20 +67,13 @@ const Discussions = () => {
     const messageContent = newMessage.trim();
     setNewMessage('');
     setSending(true);
-    setUsedNotes([]);
 
     try {
       const response = await api.post(`/discussions/${selectedDiscussion.id}/messages`, {
-        content: messageContent,
-        useNotesContext
+        content: messageContent
       });
 
       setMessages([...messages, response.data.userMessage, response.data.aiMessage]);
-      
-      if (response.data.usedNotes && response.data.usedNotes.length > 0) {
-        setUsedNotes(response.data.usedNotes);
-        setShowUsedNotes(true);
-      }
       
       fetchDiscussions(); // Refresh list to update lastMessageAt
     } catch (error) {
@@ -245,26 +235,6 @@ const Discussions = () => {
 
               <form onSubmit={sendMessage} style={styles.inputForm}>
                 <div style={styles.inputRow}>
-                  <label style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={useNotesContext}
-                      onChange={(e) => setUseNotesContext(e.target.checked)}
-                      style={styles.checkbox}
-                    />
-                    <span style={styles.checkboxText}>🔍 Szukaj w moich notatkach</span>
-                  </label>
-                  {usedNotes.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowUsedNotes(!showUsedNotes)}
-                      style={styles.notesInfoButton}
-                    >
-                      📚 Użyto {usedNotes.length} {usedNotes.length === 1 ? 'notatki' : 'notatek'}
-                    </button>
-                  )}
-                </div>
-                <div style={styles.inputRow}>
                   <input
                     type="text"
                     value={newMessage}
@@ -283,28 +253,6 @@ const Discussions = () => {
                 </div>
               </form>
 
-              {/* Panel użytych notatek */}
-              {showUsedNotes && usedNotes.length > 0 && (
-                <div style={styles.usedNotesPanel}>
-                  <div style={styles.usedNotesHeader}>
-                    <span>📚 Notatki użyte w ostatniej odpowiedzi:</span>
-                    <button onClick={() => setShowUsedNotes(false)} style={styles.closeNotesButton}>✕</button>
-                  </div>
-                  <div style={styles.usedNotesList}>
-                    {usedNotes.map((note, idx) => (
-                      <div key={note.id} style={styles.usedNoteItem}>
-                        <span style={styles.usedNoteNumber}>{idx + 1}.</span>
-                        {note.category && (
-                          <span style={styles.usedNoteCategory}>
-                            {note.category.icon} {note.category.name}
-                          </span>
-                        )}
-                        <span style={styles.usedNoteContent}>{note.content}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <div style={styles.emptyChat}>
