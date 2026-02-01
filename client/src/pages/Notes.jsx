@@ -23,6 +23,8 @@ const Notes = () => {
   });
   const [openFolders, setOpenFolders] = useState({});
   const [organizingCategory, setOrganizingCategory] = useState(null);
+  const [aiMessage, setAiMessage] = useState('');
+  const [creatingWithAI, setCreatingWithAI] = useState(false);
   const [formData, setFormData] = useState({
     content: '',
     noteCategoryId: '',
@@ -468,6 +470,32 @@ const Notes = () => {
     }
   };
 
+  const handleAiCreateNote = async () => {
+    if (!aiMessage.trim()) {
+      alert('Wpisz wiadomość do AI');
+      return;
+    }
+
+    try {
+      setCreatingWithAI(true);
+      const response = await api.post('/notes/ai-create', { 
+        message: aiMessage 
+      });
+      
+      alert('✅ ' + response.data.message);
+      setAiMessage('');
+      
+      // Refresh data
+      await fetchNotes();
+      await fetchSubcategories();
+    } catch (err) {
+      console.error('Error creating note with AI:', err);
+      alert('❌ Błąd podczas tworzenia notatki przez AI: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setCreatingWithAI(false);
+    }
+  };
+
   const handleDelete = async (noteId) => {
     if (!confirm('Czy na pewno chcesz usunąć tę notatkę?')) return;
 
@@ -574,6 +602,36 @@ const Notes = () => {
           <button onClick={openAddModal} style={styles.addButton}>
             + Dodaj notatkę
           </button>
+        </div>
+
+        {/* AI Note Creation */}
+        <div style={styles.aiCreateSection}>
+          <div style={styles.aiCreateInputWrapper}>
+            <input
+              type="text"
+              value={aiMessage}
+              onChange={(e) => setAiMessage(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !creatingWithAI) {
+                  handleAiCreateNote();
+                }
+              }}
+              placeholder="Powiedz coś AI, a stworzy notatkę... (np. 'Spotkanie z klientem ABC o 15:00')"
+              style={styles.aiCreateInput}
+              disabled={creatingWithAI}
+            />
+            <button
+              onClick={handleAiCreateNote}
+              disabled={creatingWithAI || !aiMessage.trim()}
+              style={{
+                ...styles.aiCreateButton,
+                opacity: (creatingWithAI || !aiMessage.trim()) ? 0.6 : 1,
+                cursor: (creatingWithAI || !aiMessage.trim()) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {creatingWithAI ? '⏳ Tworzę...' : '🤖 Stwórz notatkę AI'}
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -963,6 +1021,42 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'background-color 0.2s'
+  },
+  aiCreateSection: {
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    marginBottom: '2rem',
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+  },
+  aiCreateInputWrapper: {
+    display: 'flex',
+    gap: '1rem',
+    alignItems: 'center'
+  },
+  aiCreateInput: {
+    flex: 1,
+    padding: '0.875rem 1.25rem',
+    fontSize: '1rem',
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    outline: 'none',
+    transition: 'all 0.2s'
+  },
+  aiCreateButton: {
+    padding: '0.875rem 1.5rem',
+    backgroundColor: 'white',
+    color: '#667eea',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   placeholder: {
     fontSize: '1.125rem',

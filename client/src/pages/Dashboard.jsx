@@ -37,15 +37,21 @@ const Dashboard = () => {
     setAiResponse(null);
 
     try {
-      const response = await api.post('/ai/chat', {
+      // Create note with AI instead of just chatting
+      const response = await api.post('/notes/ai-create', {
         message: messageToSend
       });
       
-      setAiResponse(response.data.response);
-      console.log('AI Response:', response.data.response);
+      setAiResponse(`✅ Notatka utworzona!\n\n${response.data.note.content}\n\nKategoria: ${response.data.note.category?.name || 'Brak'}`);
+      console.log('AI Response:', response.data);
+      
+      // Reset after successful creation
+      setTimeout(() => {
+        handleReset();
+      }, 3000);
     } catch (err) {
-      console.error('AI chat failed:', err);
-      setError(err.response?.data?.message || 'Failed to get AI response');
+      console.error('AI note creation failed:', err);
+      setError(err.response?.data?.message || 'Failed to create note with AI');
     } finally {
       setIsAnalyzing(false);
     }

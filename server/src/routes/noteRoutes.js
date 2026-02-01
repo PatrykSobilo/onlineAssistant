@@ -36,4 +36,7 @@ router.post('/ai-organize', noteController.aiOrganizeUnassigned);
 // POST /api/notes/ai-reorganize - AI reorganization of all notes in category
 router.post('/ai-reorganize', noteController.aiReorganizeAll);
 
+// POST /api/notes/ai-create - AI-based note creation from user input
+router.post('/ai-create', noteController.aiCreateNote);
+
 module.exports = router;

@@ -913,3 +913,196 @@ exports.aiReorganizeAll = async (req, res) => {
     });
   }
 };
+
+// AI-based note creation from user input
+exports.aiCreateNote = async (req, res) => {
+  try {
+    const { message } = req.body;
+    const userId = req.user.id;
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
+
+    // Get all user categories
+    const categories = await NoteCategory.findAll({
+      where: { userId, isActive: true },
+      attributes: ['id', 'name', 'icon', 'color']
+    });
+
+    if (categories.length === 0) {
+      return res.status(400).json({ 
+        message: 'No categories found. Please create a category first.' 
+      });
+    }
+
+    // Get all subcategories for context
+    const subcategories = await NoteSubCategory.findAll({
+      where: { userId, isActive: true },
+      attributes: ['id', 'name', 'level', 'categoryId', 'parentSubCategoryId']
+    });
+
+    // Build category structure
+    const categoriesWithStructure = categories.map(cat => {
+      const catSubs = subcategories.filter(s => s.categoryId === cat.id);
+      
+      const buildStructure = (parentId = null, level = 1) => {
+        const children = catSubs.filter(s => s.parentSubCategoryId === parentId && s.level === level);
+        return children.map(sub => ({
+          id: sub.id,
+          name: sub.name,
+          level: sub.level,
+          children: sub.level < 5 ? buildStructure(sub.id, sub.level + 1) : []
+        }));
+      };
+
+      return {
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon,
+        subcategories: buildStructure()
+      };
+    });
+
+    // Build prompt for AI
+    const prompt = `You are a smart note-taking assistant. The user said:
+
+"${message}"
+
+Available categories with hierarchical subcategories:
+${JSON.stringify(categoriesWithStructure, null, 2)}
+
+Task: Create a note from this message. Return ONLY a JSON object with this format:
+{
+  "noteContent": "<concise summary of the key information from the message>",
+  "categoryId": <the most appropriate category ID>,
+  "subcategoryId": <the most specific/deepest subcategory ID that fits, or null if none fit>,
+  "tags": ["tag1", "tag2"]
+}
+
+Rules:
+- noteContent should be clear, concise, and capture key information
+- Choose the most relevant categoryId
+- If a good subcategory exists, use the deepest/most specific one
+- If no subcategory fits well, set subcategoryId to null (we'll create "Nieprzypisane" folder)
+- Suggest 1-3 relevant tags
+- Return ONLY valid JSON, no explanations`;
+
+    console.log('🤖 Sending to AI to create note...');
+    const aiResponse = await aiService.chatWithAI(prompt);
+    console.log('🤖 AI Response:', aiResponse);
+
+    // Parse AI response
+    let noteData;
+    try {
+      // Extract JSON from response (AI might wrap it in markdown)
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        noteData = JSON.parse(jsonMatch[0]);
+      } else {
+        noteData = JSON.parse(aiResponse);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      return res.status(500).json({ 
+        message: 'AI response could not be parsed',
+        aiResponse: aiResponse.substring(0, 500)
+      });
+    }
+
+    // Validate category exists
+    const category = categories.find(c => c.id === noteData.categoryId);
+    if (!category) {
+      return res.status(500).json({ 
+        message: 'AI selected invalid category' 
+      });
+    }
+
+    // Handle subcategory assignment
+    let subcategoryPath = {};
+    
+    if (noteData.subcategoryId) {
+      // AI selected a subcategory - build full path
+      const targetSub = subcategories.find(s => s.id === noteData.subcategoryId);
+      
+      if (targetSub) {
+        const path = [targetSub];
+        let current = targetSub;
+        
+        // Build path from target to root
+        while (current.parentSubCategoryId) {
+          current = subcategories.find(s => s.id === current.parentSubCategoryId);
+          if (current) path.unshift(current);
+          else break;
+        }
+        
+        // Set all levels
+        path.forEach((sub, idx) => {
+          subcategoryPath[`noteSubCategoryId${idx + 1}`] = sub.id;
+        });
+      }
+    } else {
+      // No subcategory selected - create or find "Nieprzypisane" at level 1
+      let unassigned = await NoteSubCategory.findOne({
+        where: {
+          userId,
+          categoryId: noteData.categoryId,
+          parentSubCategoryId: null,
+          name: 'Nieprzypisane',
+          level: 1,
+          isActive: true
+        }
+      });
+
+      if (!unassigned) {
+        unassigned = await NoteSubCategory.create({
+          userId,
+          categoryId: noteData.categoryId,
+          parentSubCategoryId: null,
+          level: 1,
+          name: 'Nieprzypisane',
+          isActive: true,
+          isUnlocked: true
+        });
+        console.log(`Created "Nieprzypisane" folder at level 1 in category "${category.name}"`);
+      }
+
+      subcategoryPath.noteSubCategoryId1 = unassigned.id;
+    }
+
+    // Create the note
+    const newNote = await Note.create({
+      userId,
+      content: noteData.noteContent,
+      noteCategoryId: noteData.categoryId,
+      ...subcategoryPath,
+      tags: noteData.tags || [],
+      source: 'text',
+      language: 'pl'
+    });
+
+    // Fetch the complete note with associations
+    const createdNote = await Note.findOne({
+      where: { id: newNote.id },
+      include: [
+        {
+          model: NoteCategory,
+          as: 'category',
+          attributes: ['name', 'icon', 'color']
+        }
+      ]
+    });
+
+    res.status(201).json({
+      message: 'Note created successfully by AI',
+      note: createdNote
+    });
+
+  } catch (error) {
+    console.error('Error in AI note creation:', error);
+    res.status(500).json({ 
+      message: 'Error creating note with AI',
+      error: error.message 
+    });
+  }
+};
