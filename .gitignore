@@ -1,6 +1,103 @@
-# Root gitignore
+# Dependencies
 node_modules/
+/client/node_modules/
+/server/node_modules/
+
+# Production build
+/client/dist/
+/client/build/
+
+# Environment variables - WRAŻLIWE
 .env
+.env.*
+!.env.example
+*.env
 .env.local
+.env.production
+.env.development
+.env.test
+
+# API Keys and secrets - WRAŻLIWE
+**/config/keys.js
+**/config/secrets.js
+secrets/
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# Database - WRAŻLIWE
+*.sql.backup
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3
+database.json
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+/server/logs/
+/client/logs/
+combined.log
+error.log
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+ecosystem.config.js.backup
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+coverage/
+.nyc_output/
+*.test.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Deployment scripts - WRAŻLIWE
+deploy.sh
+*.deploy
+deployment-keys/
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Backup files
+*.backup
+*~
+
+# SSH keys - WRAŻLIWE
+id_rsa
+id_rsa.pub
+*.ppk
+
+# Thunder Client (REST API testing)
+thunder-tests/
+thunder-client-collection.json
+
