@@ -57,13 +57,11 @@ const Settings = () => {
     
     try {
       const response = await api.put('/auth/profile', profileData);
-      console.log('Profile update response:', response.data);
       updateUser(response.data.user);
       setIsEditingProfile(false);
       setMessage({ type: 'success', text: 'Profil zaktualizowany pomyślnie!' });
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } catch (error) {
-      console.error('Profile update error:', error);
       setMessage({ 
         type: 'error', 
         text: error.response?.data?.error || 'Błąd aktualizacji profilu' 

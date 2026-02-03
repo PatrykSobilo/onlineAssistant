@@ -53,10 +53,8 @@ const Dashboard = () => {
 
     const silenceCheckInterval = setInterval(() => {
       const timeSinceLastChange = Date.now() - lastTranscriptChange;
-      console.log(`🔍 Checking silence: ${timeSinceLastChange}ms since last change, transcript length: ${transcript.trim().length}`);
       
-      if (timeSinceLastChange >= 10000 && transcript.trim().length >= 10) {
-        console.log('🔇 Silence detected for 10s, auto-processing:', transcript);
+      if (timeSinceLastChange >= 10000 && transcript.trim().length > 0) {
         handleAskAI(transcript);
         resetTranscript();
         setLastTranscriptChange(Date.now()); // Reset timer
