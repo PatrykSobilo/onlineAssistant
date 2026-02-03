@@ -92,6 +92,11 @@ const Note = sequelize.define('Note', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  wasMerged: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

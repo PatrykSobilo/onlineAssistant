@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
+import CategorySelector from '../components/CategorySelector';
 import api from '../services/api';
 
 const Discussions = () => {
@@ -11,6 +12,7 @@ const Discussions = () => {
   const [sending, setSending] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [showCategorySelector, setShowCategorySelector] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -48,13 +50,24 @@ const Discussions = () => {
   };
 
   const createNewDiscussion = async () => {
+    setShowCategorySelector(true);
+  };
+
+  const handleCategorySelect = async (selection) => {
     try {
+      const title = selection.path.map(p => p.name).join(' → ');
+      
       const response = await api.post('/discussions', {
-        title: 'Nowa rozmowa'
+        title,
+        noteCategoryId: selection.categoryId,
+        noteSubCategoryId: selection.subCategoryId,
+        contextLevel: selection.contextLevel
       });
+      
       setDiscussions([response.data, ...discussions]);
       setSelectedDiscussion(response.data);
       setMessages([]);
+      setShowCategorySelector(false);
     } catch (error) {
       console.error('Error creating discussion:', error);
     }
@@ -68,16 +81,41 @@ const Discussions = () => {
     setNewMessage('');
     setSending(true);
 
+    // Natychmiast dodaj wiadomość użytkownika do widoku
+    const tempUserMessage = {
+      id: `temp-user-${Date.now()}`,
+      role: 'user',
+      content: messageContent,
+      createdAt: new Date().toISOString()
+    };
+
+    // Dodaj wiadomość użytkownika i placeholder dla AI
+    const tempAiMessage = {
+      id: `temp-ai-${Date.now()}`,
+      role: 'assistant',
+      content: '...',
+      isTyping: true,
+      createdAt: new Date().toISOString()
+    };
+
+    setMessages([...messages, tempUserMessage, tempAiMessage]);
+
     try {
       const response = await api.post(`/discussions/${selectedDiscussion.id}/messages`, {
         content: messageContent
       });
 
-      setMessages([...messages, response.data.userMessage, response.data.aiMessage]);
+      // Zamień temporary messages na prawdziwe z serwera
+      setMessages(prevMessages => {
+        const filtered = prevMessages.filter(m => !m.id.toString().startsWith('temp-'));
+        return [...filtered, response.data.userMessage, response.data.aiMessage];
+      });
       
       fetchDiscussions(); // Refresh list to update lastMessageAt
     } catch (error) {
       console.error('Error sending message:', error);
+      // Usuń temporary messages w przypadku błędu
+      setMessages(prevMessages => prevMessages.filter(m => !m.id.toString().startsWith('temp-')));
       setNewMessage(messageContent); // Restore message on error
     } finally {
       setSending(false);
@@ -133,8 +171,46 @@ const Discussions = () => {
     return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
   };
 
+  const getCategoryBadge = (discussion) => {
+    if (!discussion.noteCategoryId && !discussion.noteSubCategoryId) {
+      return null;
+    }
+    
+    return (
+      <div style={styles.categoryBadge}>
+        📁 Kontekst
+      </div>
+    );
+  };
+
   return (
     <>
+      <style>
+        {`
+          @keyframes typing {
+            0%, 60%, 100% {
+              opacity: 0.4;
+              transform: translateY(0);
+            }
+            30% {
+              opacity: 1;
+              transform: translateY(-8px);
+            }
+          }
+          .typing-dot-1 {
+            animation: typing 1.4s infinite;
+            animation-delay: 0s;
+          }
+          .typing-dot-2 {
+            animation: typing 1.4s infinite;
+            animation-delay: 0.2s;
+          }
+          .typing-dot-3 {
+            animation: typing 1.4s infinite;
+            animation-delay: 0.4s;
+          }
+        `}
+      </style>
       <Navbar />
       <div style={styles.container}>
         <div style={styles.sidebar}>
@@ -159,6 +235,7 @@ const Discussions = () => {
                 >
                   <div style={styles.discussionItemContent}>
                     <div style={styles.discussionTitle}>{discussion.title}</div>
+                    {getCategoryBadge(discussion)}
                     <div style={styles.discussionTime}>
                       {formatDate(discussion.lastMessageAt || discussion.createdAt)}
                     </div>
@@ -226,7 +303,17 @@ const Discussions = () => {
                       <div style={styles.messageRole}>
                         {message.role === 'user' ? '👤 Ty' : '🤖 AI'}
                       </div>
-                      <div style={styles.messageContent}>{message.content}</div>
+                      <div style={styles.messageContent}>
+                        {message.isTyping ? (
+                          <div style={styles.typingIndicator}>
+                            <span className="typing-dot-1" style={styles.typingDot}>●</span>
+                            <span className="typing-dot-2" style={styles.typingDot}>●</span>
+                            <span className="typing-dot-3" style={styles.typingDot}>●</span>
+                          </div>
+                        ) : (
+                          message.content
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
@@ -261,6 +348,13 @@ const Discussions = () => {
           )}
         </div>
       </div>
+
+      {showCategorySelector && (
+        <CategorySelector
+          onSelect={handleCategorySelect}
+          onClose={() => setShowCategorySelector(false)}
+        />
+      )}
     </>
   );
 };
@@ -338,6 +432,16 @@ const styles = {
   discussionTime: {
     fontSize: '0.75rem',
     color: '#999'
+  },
+  categoryBadge: {
+    fontSize: '0.7rem',
+    backgroundColor: '#10B981',
+    color: 'white',
+    padding: '0.2rem 0.5rem',
+    borderRadius: '8px',
+    display: 'inline-block',
+    marginTop: '0.25rem',
+    marginBottom: '0.25rem'
   },
   deleteButton: {
     background: 'none',
@@ -446,6 +550,16 @@ const styles = {
     lineHeight: '1.5',
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word'
+  },
+  typingIndicator: {
+    display: 'flex',
+    gap: '0.3rem',
+    alignItems: 'center',
+    padding: '0.25rem 0'
+  },
+  typingDot: {
+    fontSize: '1.2rem',
+    display: 'inline-block'
   },
   inputForm: {
     padding: '1.25rem',

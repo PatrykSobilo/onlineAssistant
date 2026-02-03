@@ -21,6 +21,33 @@ const Discussion = sequelize.define('Discussion', {
     allowNull: false,
     defaultValue: 'Nowa rozmowa'
   },
+  noteCategoryId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_categories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL',
+    field: 'note_category_id'
+  },
+  noteSubCategoryId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'note_sub_categories',
+      key: 'id'
+    },
+    onDelete: 'SET NULL',
+    field: 'note_sub_category_id'
+  },
+  contextLevel: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1,
+    allowNull: false,
+    field: 'context_level',
+    comment: 'Poziom w hierarchii (1-5)'
+  },
   lastMessageAt: {
     type: DataTypes.DATE,
     allowNull: true

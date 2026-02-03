@@ -130,12 +130,17 @@ const handleNotesAutoMove = async (userId, categoryId, parentSubCategoryId, newL
 // Pobierz subkategorie (z możliwością filtrowania po kategorii i parent)
 exports.getSubCategories = async (req, res) => {
   try {
-    const { categoryId, parentId, level } = req.query;
+    const { categoryId, parentId, level, includeDisabled } = req.query;
     
     const where = {
       userId: req.user.id,
       isActive: true
     };
+
+    // Domyślnie zwracamy tylko odblokowane, chyba że includeDisabled=true
+    if (includeDisabled !== 'true') {
+      where.isUnlocked = true;
+    }
 
     if (categoryId) {
       where.categoryId = categoryId;
@@ -455,6 +460,55 @@ exports.unlockSubCategory = async (req, res) => {
   }
 };
 
+// Toggle blokowania/odblokowywania subkategorii (kaskadowo na dzieci)
+exports.toggleLockSubCategory = async (req, res) => {
+  try {
+    const subcategory = await NoteSubCategory.findOne({
+      where: {
+        id: req.params.id,
+        userId: req.user.id
+      }
+    });
+
+    if (!subcategory) {
+      return res.status(404).json({ message: 'Subkategoria nie została znaleziona' });
+    }
+
+    // Toggle isUnlocked
+    const newLockState = !subcategory.isUnlocked;
+
+    // Funkcja rekurencyjna do blokowania/odblokowywania dzieci
+    const updateChildrenLock = async (parentId, lockState) => {
+      const children = await NoteSubCategory.findAll({
+        where: {
+          parentSubCategoryId: parentId,
+          userId: req.user.id,
+          isActive: true
+        }
+      });
+
+      for (const child of children) {
+        await child.update({ isUnlocked: lockState });
+        await updateChildrenLock(child.id, lockState);
+      }
+    };
+
+    // Aktualizuj główną subkategorię
+    await subcategory.update({ isUnlocked: newLockState });
+
+    // Aktualizuj wszystkie dzieci kaskadowo
+    await updateChildrenLock(subcategory.id, newLockState);
+
+    res.json({
+      message: newLockState ? 'Subkategoria i jej dzieci zostały odblokowane' : 'Subkategoria i jej dzieci zostały zablokowane',
+      subcategory: await subcategory.reload()
+    });
+  } catch (error) {
+    console.error('Error toggling lock subcategory:', error);
+    res.status(500).json({ message: 'Błąd podczas zmiany blokady subkategorii' });
+  }
+};
+
 // Usuń subkategorię (soft delete, kaskada na dzieci)
 exports.deleteSubCategory = async (req, res) => {
   try {
@@ -467,6 +521,65 @@ exports.deleteSubCategory = async (req, res) => {
 
     if (!subcategory) {
       return res.status(404).json({ message: 'Subkategoria nie została znaleziona' });
+    }
+
+    // Sprawdź czy są notatki przypisane do tej subkategorii (na dowolnym poziomie)
+    const notesCount = await Note.count({
+      where: {
+        userId: req.user.id,
+        [Op.or]: [
+          { noteSubCategoryId1: subcategory.id },
+          { noteSubCategoryId2: subcategory.id },
+          { noteSubCategoryId3: subcategory.id },
+          { noteSubCategoryId4: subcategory.id },
+          { noteSubCategoryId5: subcategory.id }
+        ]
+      }
+    });
+
+    if (notesCount > 0) {
+      return res.status(400).json({
+        message: `Nie można usunąć subkategorii. Przypisanych jest ${notesCount} notatek. Zamiast tego możesz zablokować tę subkategorię.`,
+        notesCount
+      });
+    }
+
+    // Sprawdź czy dzieci mają notatki
+    const checkChildrenNotes = async (parentId) => {
+      const children = await NoteSubCategory.findAll({
+        where: {
+          parentSubCategoryId: parentId,
+          userId: req.user.id,
+          isActive: true
+        }
+      });
+
+      for (const child of children) {
+        const childNotesCount = await Note.count({
+          where: {
+            userId: req.user.id,
+            [Op.or]: [
+              { noteSubCategoryId1: child.id },
+              { noteSubCategoryId2: child.id },
+              { noteSubCategoryId3: child.id },
+              { noteSubCategoryId4: child.id },
+              { noteSubCategoryId5: child.id }
+            ]
+          }
+        });
+
+        if (childNotesCount > 0) {
+          throw new Error(`Nie można usunąć. Podkategoria "${child.name}" ma ${childNotesCount} przypisanych notatek.`);
+        }
+
+        await checkChildrenNotes(child.id);
+      }
+    };
+
+    try {
+      await checkChildrenNotes(subcategory.id);
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
     }
 
     // Funkcja rekurencyjna do usuwania dzieci

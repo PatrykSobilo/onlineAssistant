@@ -27,6 +27,9 @@ router.put('/:id', noteSubCategoryController.updateSubCategory);
 // PUT /api/subcategories/:id/unlock - Odblokuj subkategorię (poziomy 3-5)
 router.put('/:id/unlock', noteSubCategoryController.unlockSubCategory);
 
+// PUT /api/subcategories/:id/toggle-lock - Zablokuj/odblokuj subkategorię (toggle)
+router.put('/:id/toggle-lock', noteSubCategoryController.toggleLockSubCategory);
+
 // DELETE /api/subcategories/:id - Usuń subkategorię (soft delete z kaskadą)
 router.delete('/:id', noteSubCategoryController.deleteSubCategory);
 

@@ -16,7 +16,38 @@ const Categories = () => {
     color: '#3B82F6'
   });
 
-  const predefinedIcons = ['📁', '💼', '🏠', '⚽', '🎣', '🎮', '📚', '🎵', '🎨', '💰', '🏋️', '✈️'];
+  const predefinedIcons = [
+    // Ogólne
+    '📁', '📂', '📋', '📌', '📍', '🏷️', '🔖', '📎', '🗂️', '📦',
+    // Praca i biznes
+    '💼', '💻', '⌨️', '🖥️', '📱', '📞', '📧', '📨', '📩', '✉️', '📝', '📄', '📃', '📑', '🗒️', '📊', '📈', '📉', '💰', '💵', '💴', '💶', '💷', '💳', '🏦', '🏢', '🏭', '🏗️',
+    // Dom i życie
+    '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🛋️', '🛏️', '🚪', '🪟', '🔑', '🛠️', '🔨', '🔧', '🪛', '⚙️',
+    // Sport i fitness
+    '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '⛳', '🏹', '🎣', '🥊', '🥋', '🤸', '🤺', '⛷️', '🏂', '🏋️', '🤾', '🏌️', '🧗', '🚴', '🚵', '🤹', '🧘', '🏃', '🚶', '⚡', '💪',
+    // Hobby i rozrywka
+    '🎮', '🎯', '🎲', '🎰', '🎭', '🎪', '🎨', '🖌️', '🖍️', '✏️', '🖊️', '🖋️', '✒️', '📐', '📏', '🎬', '🎤', '🎧', '🎵', '🎶', '🎹', '🎸', '🥁', '🎺', '🎷', '📷', '📸', '📹', '🎥', '📺', '📻', '📖', '📚', '📕', '📗', '📘', '📙', '🔬', '🔭', '🧬', '🧪', '🧫',
+    // Nauka i edukacja
+    '🎓', '📚', '📖', '✏️', '📝', '📐', '🔬', '🔭', '🧮', '🧪', '🧬', '📊', '🗺️', '🌍', '🌎', '🌏', '🧠', '💡', '🔍', '🔎',
+    // Jedzenie i picie
+    '🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🥙', '🥗', '🍝', '🍜', '🍲', '🍱', '🍣', '🍤', '🍙', '🍚', '🍛', '🥘', '🍖', '🍗', '🥩', '🥓', '🍞', '🥐', '🥖', '🧀', '🥚', '🍳', '🥞', '🧇', '🥯', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯', '☕', '🍵', '🧃', '🥤', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🧉',
+    // Podróże i transport
+    '✈️', '🚀', '🛸', '🚁', '🛩️', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋', '🚌', '🚍', '🚎', '🚐', '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘', '🚙', '🚚', '🚛', '🚜', '🏍️', '🛵', '🚲', '🛴', '⛵', '🚤', '🛥️', '🛳️', '⛴️', '🚢', '⚓', '🗺️', '🧳', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🏖️', '🏝️',
+    // Natura i zwierzęta
+    '🌳', '🌲', '🌴', '🌵', '🌾', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃', '🌺', '🌻', '🌷', '🌹', '🥀', '🌸', '💐', '🏵️', '🌼', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🐢', '🐍', '🦎', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄',
+    // Pogoda i niebo
+    '☀️', '🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '🌪️', '🌫️', '🌈', '☂️', '⛱️', '⚡', '🔥', '💧', '🌊', '🌙', '⭐', '🌟', '✨', '💫',
+    // Symbole i emocje
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💖', '💗', '💓', '💞', '💘', '💝', '⭐', '✨', '💫', '🔥', '💥', '✅', '❌', '⚠️', '⛔', '🚫', '💯', '🎯', '🎁', '🎀', '🎉', '🎊', '🎈', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '👑', '💎', '💍', '🔔', '🔕', '🎵', '🎶', '🔊', '📢', '⚡', '🔆', '💡', '🔦',
+    // Czas i kalendarz
+    '⏰', '⏱️', '⏲️', '⏳', '⌛', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '📅', '📆', '🗓️',
+    // Medycyna i zdrowie
+    '🏥', '⚕️', '💊', '💉', '🩺', '🩹', '🩼', '🧬', '🦠', '🧪', '🧫', '🌡️', '❤️‍🩹', '🫀', '🧠', '🦴', '🦷', '👁️',
+    // Technologia
+    '💻', '🖥️', '⌨️', '🖱️', '🖨️', '💾', '💿', '📀', '🎮', '🕹️', '📱', '📲', '☎️', '📞', '📟', '📠', '🔋', '🔌', '💡', '🔦', '🕯️', '🧯', '🛢️', '⚙️', '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🔩', '⚡', '🔬', '🔭', '📡', '🗜️',
+    // Znaki i strzałki
+    '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '🔄', '🔃', '🔁', '🔂', '▶️', '⏸️', '⏹️', '⏺️', '⏭️', '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➕', '➖', '✖️', '➗', '♾️', '‼️', '⁉️', '❓', '❔', '❕', '❗', '〰️', '💱', '💲', '⚜️', '🔱', '📛', '🔰', '⭕', '✅', '☑️', '✔️', '❌', '❎', '➰', '➿', '〽️', '✳️', '✴️', '❇️', '©️', '®️', '™️', '#️⃣', '*️⃣', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟',
+  ];
   const predefinedColors = [
     '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
     '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
@@ -215,29 +246,38 @@ const Categories = () => {
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Ikona</label>
-                  <div style={styles.iconPicker}>
-                    {predefinedIcons.map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        onClick={() => setFormData({...formData, icon})}
-                        style={{
-                          ...styles.iconButton,
-                          ...(formData.icon === icon ? styles.iconButtonActive : {})
-                        }}
-                      >
-                        {icon}
-                      </button>
-                    ))}
+                  <div style={styles.iconPickerContainer}>
+                    <div style={styles.iconPickerLeft}>
+                      <div style={styles.selectedIconDisplay}>
+                        <span style={styles.selectedIconLarge}>{formData.icon}</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={formData.icon}
+                        onChange={(e) => setFormData({...formData, icon: e.target.value})}
+                        style={styles.inputSmall}
+                        placeholder="lub wpisz własne emoji"
+                        maxLength="2"
+                      />
+                    </div>
+                    <div style={styles.iconPickerRight}>
+                      <div style={styles.iconGrid}>
+                        {predefinedIcons.map((icon, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => setFormData({...formData, icon})}
+                            style={{
+                              ...styles.iconButton,
+                              ...(formData.icon === icon ? styles.iconButtonActive : {})
+                            }}
+                          >
+                            {icon}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    value={formData.icon}
-                    onChange={(e) => setFormData({...formData, icon: e.target.value})}
-                    style={styles.inputSmall}
-                    placeholder="lub wpisz własne emoji"
-                    maxLength="2"
-                  />
                 </div>
 
                 <div style={styles.formGroup}>
@@ -436,12 +476,10 @@ const styles = {
   categoryActions: {
     display: 'flex',
     gap: '0.5rem',
-    marginTop: '1rem',
-    flexWrap: 'wrap'
+    marginTop: '1rem'
   },
   viewTreeButton: {
     flex: 1,
-    minWidth: '120px',
     backgroundColor: '#8B5CF6',
     color: 'white',
     border: 'none',
@@ -449,7 +487,8 @@ const styles = {
     borderRadius: '6px',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.3s',
+    whiteSpace: 'nowrap'
   },
   editButton: {
     flex: 1,
@@ -460,7 +499,8 @@ const styles = {
     borderRadius: '6px',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.3s',
+    whiteSpace: 'nowrap'
   },
   deleteButton: {
     flex: 1,
@@ -471,7 +511,8 @@ const styles = {
     borderRadius: '6px',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.3s',
+    whiteSpace: 'nowrap'
   },
   modalOverlay: {
     position: 'fixed',
@@ -523,8 +564,47 @@ const styles = {
     borderRadius: '6px',
     border: '1px solid #D1D5DB',
     fontSize: '0.9rem',
-    marginTop: '0.5rem',
     boxSizing: 'border-box'
+  },
+  iconPickerContainer: {
+    display: 'flex',
+    gap: '1rem',
+    height: '300px'
+  },
+  iconPickerLeft: {
+    flex: '0 0 150px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
+  },
+  selectedIconDisplay: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    border: '2px solid #E5E7EB',
+    borderRadius: '12px',
+    height: '120px'
+  },
+  selectedIconLarge: {
+    fontSize: '4rem'
+  },
+  iconPickerRight: {
+    flex: 1,
+    border: '2px solid #E5E7EB',
+    borderRadius: '8px',
+    backgroundColor: '#F9FAFB',
+    overflow: 'hidden',
+    minWidth: 0
+  },
+  iconGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, 1fr)',
+    gap: '0.4rem',
+    padding: '0.5rem',
+    height: '100%',
+    overflowY: 'auto',
+    overflowX: 'hidden'
   },
   iconPicker: {
     display: 'grid',
@@ -533,13 +613,19 @@ const styles = {
     marginBottom: '0.5rem'
   },
   iconButton: {
-    padding: '0.75rem',
-    fontSize: '1.5rem',
-    border: '2px solid #E5E7EB',
+    padding: '0.4rem',
+    fontSize: '1.3rem',
+    border: '2px solid transparent',
     borderRadius: '6px',
     backgroundColor: 'white',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.2s',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    aspectRatio: '1',
+    width: '100%',
+    minWidth: 0
   },
   iconButtonActive: {
     borderColor: '#3B82F6',

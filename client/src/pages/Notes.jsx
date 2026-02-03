@@ -28,6 +28,11 @@ const Notes = () => {
   const [formData, setFormData] = useState({
     content: '',
     noteCategoryId: '',
+    noteSubCategoryId1: null,
+    noteSubCategoryId2: null,
+    noteSubCategoryId3: null,
+    noteSubCategoryId4: null,
+    noteSubCategoryId5: null,
     tags: '',
     source: 'text',
     language: 'pl'
@@ -312,23 +317,46 @@ const Notes = () => {
     setFormData({
       content: '',
       noteCategoryId: '',
+      noteSubCategoryId1: null,
+      noteSubCategoryId2: null,
+      noteSubCategoryId3: null,
+      noteSubCategoryId4: null,
+      noteSubCategoryId5: null,
       tags: '',
       source: 'text',
       language: 'pl'
     });
+    setAvailableSubcategories([]);
     setShowModal(true);
   };
 
-  const openEditModal = (note) => {
+  const openEditModal = async (note) => {
     setEditingNote(note);
     const noteTags = parseTags(note.tags);
     setFormData({
       content: note.content,
       noteCategoryId: note.noteCategoryId || '',
+      noteSubCategoryId1: note.noteSubCategoryId1,
+      noteSubCategoryId2: note.noteSubCategoryId2,
+      noteSubCategoryId3: note.noteSubCategoryId3,
+      noteSubCategoryId4: note.noteSubCategoryId4,
+      noteSubCategoryId5: note.noteSubCategoryId5,
       tags: noteTags.join(', '),
       source: note.source || 'text',
       language: note.language || 'pl'
     });
+    
+    // Pobierz subkategorie dla wybranej kategorii
+    if (note.noteCategoryId) {
+      try {
+        const response = await api.get(`/subcategories?categoryId=${note.noteCategoryId}`);
+        setAvailableSubcategories(response.data);
+      } catch (err) {
+        console.error('Error fetching subcategories:', err);
+        setAvailableSubcategories([]);
+      }
+    }
+    
     setShowModal(true);
   };
 
@@ -414,6 +442,50 @@ const Notes = () => {
     );
   };
 
+  const getFilteredSubcategoriesForm = (level) => {
+    if (!availableSubcategories.length) return [];
+
+    // For level 1, show all level 1 subcategories
+    if (level === 1) {
+      return availableSubcategories.filter(sc => sc.level === 1);
+    }
+
+    // For other levels, show children of selected parent
+    const parentId = formData[`noteSubCategoryId${level - 1}`];
+    if (!parentId) return [];
+
+    return availableSubcategories.filter(sc => 
+      sc.level === level && sc.parentSubCategoryId === parentId
+    );
+  };
+
+  const hasChildren = (subCategoryId) => {
+    return availableSubcategories.some(sc => sc.parentSubCategoryId === subCategoryId);
+  };
+
+  const getDeepestSelectedLevel = () => {
+    if (formData.noteSubCategoryId5) return 5;
+    if (formData.noteSubCategoryId4) return 4;
+    if (formData.noteSubCategoryId3) return 3;
+    if (formData.noteSubCategoryId2) return 2;
+    if (formData.noteSubCategoryId1) return 1;
+    return 0;
+  };
+
+  const canSaveNote = () => {
+    if (!formData.noteCategoryId) return true; // Bez kategorii - OK
+    
+    const deepestLevel = getDeepestSelectedLevel();
+    if (deepestLevel === 0) {
+      // Sprawdź czy kategoria ma podkategorie poziom 1
+      return getFilteredSubcategoriesForm(1).length === 0;
+    }
+    
+    const deepestSubCategoryId = formData[`noteSubCategoryId${deepestLevel}`];
+    // Sprawdź czy wybrana podkategoria ma dzieci
+    return !hasChildren(deepestSubCategoryId);
+  };
+
   const handleSubcategoryChange = (level, value) => {
     const newSelected = {
       noteSubCategoryId1: level >= 1 ? (level === 1 ? (value || null) : selectedMove.noteSubCategoryId1) : null,
@@ -425,12 +497,50 @@ const Notes = () => {
     setSelectedMove(newSelected);
   };
 
-  const handleInputChange = (e) => {
+  const handleSubcategoryChangeForm = (level, value) => {
+    const newFormData = {
+      ...formData,
+      noteSubCategoryId1: level >= 1 ? (level === 1 ? (value || null) : formData.noteSubCategoryId1) : null,
+      noteSubCategoryId2: level >= 2 ? (level === 2 ? (value || null) : formData.noteSubCategoryId2) : null,
+      noteSubCategoryId3: level >= 3 ? (level === 3 ? (value || null) : formData.noteSubCategoryId3) : null,
+      noteSubCategoryId4: level >= 4 ? (level === 4 ? (value || null) : formData.noteSubCategoryId4) : null,
+      noteSubCategoryId5: level >= 5 ? (level === 5 ? (value || null) : formData.noteSubCategoryId5) : null
+    };
+    setFormData(newFormData);
+  };
+
+  const handleInputChange = async (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Jeśli zmienia się kategoria, pobierz jej subkategorie i zresetuj podkategorie
+    if (name === 'noteCategoryId') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        noteSubCategoryId1: null,
+        noteSubCategoryId2: null,
+        noteSubCategoryId3: null,
+        noteSubCategoryId4: null,
+        noteSubCategoryId5: null
+      }));
+      
+      if (value) {
+        try {
+          const response = await api.get(`/subcategories?categoryId=${value}`);
+          setAvailableSubcategories(response.data);
+        } catch (err) {
+          console.error('Error fetching subcategories:', err);
+          setAvailableSubcategories([]);
+        }
+      } else {
+        setAvailableSubcategories([]);
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -441,18 +551,29 @@ const Notes = () => {
       return;
     }
 
+    // Walidacja - czy notatka jest na najniższym poziomie (liściu)
+    if (!canSaveNote()) {
+      const deepestLevel = getDeepestSelectedLevel();
+      if (deepestLevel === 0) {
+        alert('⚠️ Wybrana kategoria ma podkategorie.\n\nMusisz wybrać podkategorię do końca (najniższy poziom), aby zapisać notatkę.');
+      } else {
+        alert('⚠️ Wybrana podkategoria ma jeszcze poziomy niżej.\n\nMusisz wybrać podkategorię do końca (najniższy poziom), aby zapisać notatkę.');
+      }
+      return;
+    }
+
     try {
       const payload = {
         content: formData.content.trim(),
         noteCategoryId: formData.noteCategoryId || null,
+        noteSubCategoryId1: formData.noteSubCategoryId1,
+        noteSubCategoryId2: formData.noteSubCategoryId2,
+        noteSubCategoryId3: formData.noteSubCategoryId3,
+        noteSubCategoryId4: formData.noteSubCategoryId4,
+        noteSubCategoryId5: formData.noteSubCategoryId5,
         tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
         source: formData.source,
-        language: formData.language,
-        noteSubCategoryId1: null,
-        noteSubCategoryId2: null,
-        noteSubCategoryId3: null,
-        noteSubCategoryId4: null,
-        noteSubCategoryId5: null
+        language: formData.language
       };
 
       if (editingNote) {
@@ -791,6 +912,108 @@ const Notes = () => {
                   </select>
                 </div>
 
+                {/* Podkategorie - pokazuj tylko gdy kategoria wybrana */}
+                {formData.noteCategoryId && (
+                  <>
+                    {/* Level 1 */}
+                    {getFilteredSubcategoriesForm(1).length > 0 && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Podkategoria - Poziom 1 *</label>
+                        <select
+                          value={formData.noteSubCategoryId1 || ''}
+                          onChange={(e) => handleSubcategoryChangeForm(1, e.target.value ? parseInt(e.target.value) : null)}
+                          style={styles.input}
+                          required
+                        >
+                          <option value="">-- Wybierz podkategorię --</option>
+                          {getFilteredSubcategoriesForm(1).map(sc => (
+                            <option key={sc.id} value={sc.id}>{sc.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Level 2 */}
+                    {formData.noteSubCategoryId1 && getFilteredSubcategoriesForm(2).length > 0 && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Podkategoria - Poziom 2 *</label>
+                        <select
+                          value={formData.noteSubCategoryId2 || ''}
+                          onChange={(e) => handleSubcategoryChangeForm(2, e.target.value ? parseInt(e.target.value) : null)}
+                          style={styles.input}
+                          required
+                        >
+                          <option value="">-- Wybierz podkategorię --</option>
+                          {getFilteredSubcategoriesForm(2).map(sc => (
+                            <option key={sc.id} value={sc.id}>{sc.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Level 3 */}
+                    {formData.noteSubCategoryId2 && getFilteredSubcategoriesForm(3).length > 0 && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Podkategoria - Poziom 3 *</label>
+                        <select
+                          value={formData.noteSubCategoryId3 || ''}
+                          onChange={(e) => handleSubcategoryChangeForm(3, e.target.value ? parseInt(e.target.value) : null)}
+                          style={styles.input}
+                          required
+                        >
+                          <option value="">-- Wybierz podkategorię --</option>
+                          {getFilteredSubcategoriesForm(3).map(sc => (
+                            <option key={sc.id} value={sc.id}>{sc.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Level 4 */}
+                    {formData.noteSubCategoryId3 && getFilteredSubcategoriesForm(4).length > 0 && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Podkategoria - Poziom 4 *</label>
+                        <select
+                          value={formData.noteSubCategoryId4 || ''}
+                          onChange={(e) => handleSubcategoryChangeForm(4, e.target.value ? parseInt(e.target.value) : null)}
+                          style={styles.input}
+                          required
+                        >
+                          <option value="">-- Wybierz podkategorię --</option>
+                          {getFilteredSubcategoriesForm(4).map(sc => (
+                            <option key={sc.id} value={sc.id}>{sc.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Level 5 */}
+                    {formData.noteSubCategoryId4 && getFilteredSubcategoriesForm(5).length > 0 && (
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Podkategoria - Poziom 5 *</label>
+                        <select
+                          value={formData.noteSubCategoryId5 || ''}
+                          onChange={(e) => handleSubcategoryChangeForm(5, e.target.value ? parseInt(e.target.value) : null)}
+                          style={styles.input}
+                          required
+                        >
+                          <option value="">-- Wybierz podkategorię --</option>
+                          {getFilteredSubcategoriesForm(5).map(sc => (
+                            <option key={sc.id} value={sc.id}>{sc.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Komunikat o konieczności wyboru do końca */}
+                    {formData.noteCategoryId && !canSaveNote() && (
+                      <div style={styles.warningBox}>
+                        ⚠️ Musisz wybrać podkategorię aż do najniższego poziomu, aby zapisać notatkę.
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Tagi (oddziel przecinkami)</label>
                   <input
@@ -1109,6 +1332,15 @@ const styles = {
     color: '#EF4444',
     textAlign: 'center',
     marginTop: '3rem'
+  },
+  warningBox: {
+    padding: '0.75rem',
+    backgroundColor: '#FEF3C7',
+    border: '1px solid #F59E0B',
+    borderRadius: '6px',
+    color: '#92400E',
+    fontSize: '0.9rem',
+    marginBottom: '1rem'
   },
   foldersContainer: {
     display: 'flex',

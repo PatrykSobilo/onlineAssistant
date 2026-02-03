@@ -914,6 +914,262 @@ exports.aiReorganizeAll = async (req, res) => {
   }
 };
 
+// AI-based merging of notes in a category
+exports.aiMergeNotes = async (req, res) => {
+  try {
+    const { categoryId } = req.body;
+    const userId = req.user.id;
+
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Category ID is required' });
+    }
+
+    console.log(`🔗 Starting AI merge for category ${categoryId}...`);
+
+    // Get category info
+    const category = await NoteCategory.findOne({
+      where: { id: categoryId, userId, isActive: true }
+    });
+
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    // Get all notes in this category
+    const notes = await Note.findAll({
+      where: { 
+        userId, 
+        noteCategoryId: categoryId,
+        wasMerged: false // Only merge original notes, not already merged ones
+      },
+      order: [['createdAt', 'ASC']]
+    });
+
+    if (notes.length < 2) {
+      return res.status(400).json({ 
+        message: 'Potrzeba co najmniej 2 notatek do połączenia' 
+      });
+    }
+
+    // Get all subcategories for structure
+    const subcategories = await NoteSubCategory.findAll({
+      where: { userId, categoryId, isActive: true },
+      attributes: ['id', 'name', 'level', 'parentSubCategoryId']
+    });
+
+    // Build subcategory structure
+    const buildStructure = (parentId = null, level = 1) => {
+      const children = subcategories.filter(
+        s => s.parentSubCategoryId === parentId && s.level === level
+      );
+      return children.map(child => ({
+        id: child.id,
+        name: child.name,
+        level: child.level,
+        children: buildStructure(child.id, level + 1)
+      }));
+    };
+
+    const subcategoryStructure = buildStructure();
+
+    // Prepare notes data for AI
+    const notesData = notes.map(note => ({
+      id: note.id,
+      content: note.content,
+      tags: note.tags || [],
+      createdAt: note.createdAt,
+      subcategoryId1: note.noteSubCategoryId1,
+      subcategoryId2: note.noteSubCategoryId2,
+      subcategoryId3: note.noteSubCategoryId3,
+      subcategoryId4: note.noteSubCategoryId4,
+      subcategoryId5: note.noteSubCategoryId5
+    }));
+
+    // AI prompt
+    const prompt = `Jesteś asystentem do organizacji notatek. Otrzymujesz listę notatek z kategorii "${category.name}".
+
+Struktura podkategorii:
+${JSON.stringify(subcategoryStructure, null, 2)}
+
+Notatki do przeanalizowania:
+${notesData.map((n, idx) => `
+Notatka #${idx + 1} (ID: ${n.id}):
+Treść: ${n.content}
+Tagi: ${Array.isArray(n.tags) && n.tags.length > 0 ? n.tags.join(', ') : 'brak'}
+Data: ${n.createdAt}
+`).join('\n')}
+
+ZADANIE:
+Przeanalizuj te notatki i znajdź te, które można sensownie połączyć w większe, spójne notatki.
+Staraj się robić jak najmniejszą ingerencję - łącz tylko notatki, które dotyczą tego samego tematu/kontekstu.
+Nie zmieniaj zbyt mocno treści - zachowaj informacje ze wszystkich połączonych notatek.
+
+Zwróć tablicę połączeń w formacie JSON:
+[
+  {
+    "noteIds": [1, 3, 7],
+    "mergedContent": "Połączona treść zachowująca wszystkie informacje...",
+    "subcategoryId": 123,
+    "tags": ["tag1", "tag2"]
+  }
+]
+
+WAŻNE:
+- Każda notatka może być użyta tylko RAZ
+- Jeśli notatka nie pasuje do żadnej grupy, pomiń ją (nie zwracaj)
+- subcategoryId musi być z dostępnej struktury podkategorii
+- Jeśli nie ma sensownego miejsca, użyj null
+- Zwróć TYLKO tablicę JSON, bez dodatkowych komentarzy
+
+Jeśli nie ma notatek do połączenia, zwróć pustą tablicę: []`;
+
+    console.log('🤖 Sending to AI for merging...');
+    const aiResponse = await aiService.chatWithAI(prompt);
+    console.log('🤖 AI Response:', aiResponse);
+
+    // Parse AI response
+    let mergeGroups;
+    try {
+      const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        mergeGroups = JSON.parse(jsonMatch[0]);
+      } else {
+        mergeGroups = JSON.parse(aiResponse);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      return res.status(500).json({ 
+        message: 'AI response could not be parsed',
+        aiResponse: aiResponse.substring(0, 500)
+      });
+    }
+
+    if (!Array.isArray(mergeGroups) || mergeGroups.length === 0) {
+      return res.json({ 
+        message: 'Nie znaleziono notatek do połączenia',
+        mergedCount: 0
+      });
+    }
+
+    console.log(`✅ Found ${mergeGroups.length} merge groups`);
+
+    // Process each merge group
+    const results = [];
+    let totalMerged = 0;
+
+    for (const group of mergeGroups) {
+      const { noteIds, mergedContent, subcategoryId, tags } = group;
+
+      // Validate noteIds
+      if (!Array.isArray(noteIds) || noteIds.length < 2) {
+        console.log('⚠️ Skipping group - need at least 2 notes');
+        continue;
+      }
+
+      // Verify all notes exist and belong to user
+      const notesToMerge = await Note.findAll({
+        where: { 
+          id: noteIds, 
+          userId, 
+          noteCategoryId: categoryId 
+        }
+      });
+
+      if (notesToMerge.length !== noteIds.length) {
+        console.log('⚠️ Skipping group - some notes not found');
+        continue;
+      }
+
+      // Build subcategory path
+      let subcategoryPath = {};
+      if (subcategoryId) {
+        const targetSub = subcategories.find(s => s.id === subcategoryId);
+        if (targetSub) {
+          const path = [targetSub];
+          let current = targetSub;
+          
+          while (current.parentSubCategoryId) {
+            current = subcategories.find(s => s.id === current.parentSubCategoryId);
+            if (current) path.unshift(current);
+            else break;
+          }
+          
+          path.forEach((sub, idx) => {
+            subcategoryPath[`noteSubCategoryId${idx + 1}`] = sub.id;
+          });
+        }
+      } else {
+        // No subcategory - use "Nieprzypisane"
+        let unassigned = await NoteSubCategory.findOne({
+          where: {
+            userId,
+            categoryId,
+            parentSubCategoryId: null,
+            name: 'Nieprzypisane',
+            level: 1,
+            isActive: true
+          }
+        });
+
+        if (!unassigned) {
+          unassigned = await NoteSubCategory.create({
+            userId,
+            categoryId,
+            parentSubCategoryId: null,
+            level: 1,
+            name: 'Nieprzypisane',
+            isActive: true,
+            isUnlocked: true
+          });
+        }
+
+        subcategoryPath.noteSubCategoryId1 = unassigned.id;
+      }
+
+      // Create merged note
+      const mergedNote = await Note.create({
+        userId,
+        content: mergedContent,
+        noteCategoryId: categoryId,
+        ...subcategoryPath,
+        tags: tags || [],
+        source: 'text',
+        language: 'pl',
+        wasMerged: true
+      });
+
+      // Delete old notes
+      await Note.destroy({
+        where: { id: noteIds }
+      });
+
+      console.log(`✅ Merged ${noteIds.length} notes into note ${mergedNote.id}`);
+      
+      results.push({
+        mergedNoteId: mergedNote.id,
+        originalNoteIds: noteIds,
+        notesCount: noteIds.length
+      });
+
+      totalMerged += noteIds.length;
+    }
+
+    res.json({
+      message: `Połączono ${totalMerged} notatek w ${results.length} grup`,
+      mergedCount: totalMerged,
+      groupsCreated: results.length,
+      results
+    });
+
+  } catch (error) {
+    console.error('Error in AI merge:', error);
+    res.status(500).json({ 
+      message: 'Error merging notes',
+      error: error.message 
+    });
+  }
+};
+
 // AI-based note creation from user input
 exports.aiCreateNote = async (req, res) => {
   try {
@@ -1002,8 +1258,9 @@ Rules:
       } else {
         noteData = JSON.parse(aiResponse);
       }
+      console.log('✅ Parsed AI response:', noteData);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
+      console.error('❌ Failed to parse AI response:', parseError);
       return res.status(500).json({ 
         message: 'AI response could not be parsed',
         aiResponse: aiResponse.substring(0, 500)
@@ -1011,21 +1268,27 @@ Rules:
     }
 
     // Validate category exists
+    console.log('🔍 Looking for category:', noteData.categoryId, 'in', categories.length, 'categories');
     const category = categories.find(c => c.id === noteData.categoryId);
     if (!category) {
+      console.error('❌ AI selected invalid category:', noteData.categoryId);
       return res.status(500).json({ 
         message: 'AI selected invalid category' 
       });
     }
+    console.log('✅ Found category:', category.name);
 
     // Handle subcategory assignment
     let subcategoryPath = {};
+    console.log('🔍 Processing subcategory, AI selected:', noteData.subcategoryId);
     
     if (noteData.subcategoryId) {
       // AI selected a subcategory - build full path
+      console.log('🔍 Looking for subcategory in', subcategories.length, 'subcategories');
       const targetSub = subcategories.find(s => s.id === noteData.subcategoryId);
       
       if (targetSub) {
+        console.log('✅ Found subcategory:', targetSub.name, 'at level', targetSub.level);
         const path = [targetSub];
         let current = targetSub;
         
@@ -1036,13 +1299,20 @@ Rules:
           else break;
         }
         
+        console.log('✅ Built path with', path.length, 'levels:', path.map(s => s.name).join(' > '));
+        
         // Set all levels
         path.forEach((sub, idx) => {
           subcategoryPath[`noteSubCategoryId${idx + 1}`] = sub.id;
         });
+      } else {
+        console.log('❌ Subcategory not found, will create Nieprzypisane');
       }
-    } else {
+    }
+    
+    if (!noteData.subcategoryId || !subcategories.find(s => s.id === noteData.subcategoryId)) {
       // No subcategory selected - create or find "Nieprzypisane" at level 1
+      console.log('🔍 Creating or finding "Nieprzypisane" folder...');
       let unassigned = await NoteSubCategory.findOne({
         where: {
           userId,
@@ -1064,13 +1334,25 @@ Rules:
           isActive: true,
           isUnlocked: true
         });
-        console.log(`Created "Nieprzypisane" folder at level 1 in category "${category.name}"`);
+        console.log(`✅ Created "Nieprzypisane" folder at level 1 in category "${category.name}"`);
+      } else {
+        console.log(`✅ Found existing "Nieprzypisane" folder in category "${category.name}"`);
       }
 
       subcategoryPath.noteSubCategoryId1 = unassigned.id;
     }
 
+    console.log('✅ Subcategory path:', subcategoryPath);
+    
     // Create the note
+    console.log('💾 Creating note with data:', {
+      userId,
+      content: noteData.noteContent.substring(0, 50) + '...',
+      categoryId: noteData.categoryId,
+      subcategoryPath,
+      tags: noteData.tags
+    });
+    
     const newNote = await Note.create({
       userId,
       content: noteData.noteContent,
@@ -1081,6 +1363,8 @@ Rules:
       language: 'pl'
     });
 
+    console.log('✅ Note created with ID:', newNote.id);
+    
     // Fetch the complete note with associations
     const createdNote = await Note.findOne({
       where: { id: newNote.id },
@@ -1093,10 +1377,14 @@ Rules:
       ]
     });
 
+    console.log('✅ Fetched complete note, sending response...');
+    
     res.status(201).json({
       message: 'Note created successfully by AI',
       note: createdNote
     });
+
+    console.log('✅ Response sent successfully');
 
   } catch (error) {
     console.error('Error in AI note creation:', error);

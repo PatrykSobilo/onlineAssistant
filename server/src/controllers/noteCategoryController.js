@@ -12,7 +12,10 @@ exports.getCategories = async (req, res) => {
       include: [{
         model: NoteSubCategory,
         as: 'subCategories',
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          isUnlocked: true  // Tylko odblokowane podkategorie
+        },
         required: false
       }],
       order: [['name', 'ASC']]
@@ -36,7 +39,10 @@ exports.getCategoryById = async (req, res) => {
       include: [{
         model: NoteSubCategory,
         as: 'subCategories',
-        where: { isActive: true },
+        where: { 
+          isActive: true,
+          isUnlocked: true  // Tylko odblokowane podkategorie
+        },
         required: false
       }]
     });

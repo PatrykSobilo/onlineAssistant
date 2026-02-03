@@ -13,9 +13,9 @@ exports.chatWithAI = async (userMessage) => {
     // Initialize with API key
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Use gemini-2.5-flash model (available and free)
+    // Use gemini-1.5-flash model (better rate limits)
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash'
+      model: 'gemini-1.5-flash'
     });
 
     // Generate response

@@ -12,6 +12,7 @@ const SubCategoryTree = ({ category, onClose, onUpdate }) => {
   const [formData, setFormData] = useState({
     name: ''
   });
+  const [hoveredButton, setHoveredButton] = useState(null);
 
   useEffect(() => {
     fetchTree();
@@ -115,20 +116,34 @@ const SubCategoryTree = ({ category, onClose, onUpdate }) => {
 
     try {
       await api.delete(`/subcategories/${node.id}`);
+      setError('');
       fetchTree();
     } catch (err) {
       console.error('Error deleting subcategory:', err);
-      setError(err.response?.data?.message || 'Błąd podczas usuwania');
+      const errorMsg = err.response?.data?.message || 'Błąd podczas usuwania';
+      setError(errorMsg);
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setError(''), 5000);
     }
   };
 
-  const handleUnlock = async (node) => {
+  const handleToggleLock = async (node) => {
+    const action = node.isUnlocked ? 'zablokować' : 'odblokować';
+    const confirmMsg = node.isUnlocked 
+      ? `Czy na pewno chcesz zablokować "${node.name}"? Podkategoria i jej dzieci nie będą dostępne do użycia w notatkach i AI.`
+      : `Czy na pewno chcesz odblokować "${node.name}"? Podkategoria i jej dzieci będą dostępne do użycia.`;
+    
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
     try {
-      await api.put(`/subcategories/${node.id}/unlock`);
+      await api.put(`/subcategories/${node.id}/toggle-lock`);
+      setError('');
       fetchTree();
     } catch (err) {
-      console.error('Error unlocking subcategory:', err);
-      setError(err.response?.data?.message || 'Błąd podczas odblokowywania');
+      console.error('Error toggling lock subcategory:', err);
+      setError(err.response?.data?.message || `Błąd podczas ${action === 'zablokować' ? 'blokowania' : 'odblokowywania'}`);
     }
   };
 
@@ -183,16 +198,14 @@ const SubCategoryTree = ({ category, onClose, onUpdate }) => {
           </div>
 
           <div style={styles.nodeActions}>
-            {isLocked && (
-              <button
-                onClick={() => handleUnlock(node)}
-                style={styles.unlockButton}
-                title="Odblokuj"
-              >
-                🔓
-              </button>
-            )}
-            {canAddChild && (
+            <button
+              onClick={() => handleToggleLock(node)}
+              style={isLocked ? styles.unlockButton : styles.lockButton}
+              title={isLocked ? 'Odblokuj podkategorię i jej dzieci' : 'Zablokuj podkategorię i jej dzieci'}
+            >
+              {isLocked ? '🔓' : '🔒'}
+            </button>
+            {canAddChild && !isLocked && (
               <button
                 onClick={() => handleAdd(node)}
                 style={styles.addChildButton}
@@ -252,20 +265,30 @@ const SubCategoryTree = ({ category, onClose, onUpdate }) => {
           <div style={styles.toolbarRight}>
             <button
               onClick={() => expandAll(tree)}
-              style={styles.expandButton}
+              onMouseEnter={() => setHoveredButton('expand')}
+              onMouseLeave={() => setHoveredButton(null)}
+              style={{
+                ...styles.toolbarExpandButton,
+                ...(hoveredButton === 'expand' ? styles.toolbarExpandButtonHover : {})
+              }}
               title="Rozwiń wszystko"
             >
               ⬇️ Rozwiń
             </button>
             <button
               onClick={collapseAll}
-              style={styles.collapseButton}
+              onMouseEnter={() => setHoveredButton('collapse')}
+              onMouseLeave={() => setHoveredButton(null)}
+              style={{
+                ...styles.toolbarCollapseButton,
+                ...(hoveredButton === 'collapse' ? styles.toolbarCollapseButtonHover : {})
+              }}
               title="Zwiń wszystko"
             >
               ⬆️ Zwiń
             </button>
             <div style={styles.legend}>
-              <span style={styles.legendItem}>🔒 = Zablokowana</span>
+              <span style={styles.legendItem}>🔒 = Zablokowana (niedostępna)</span>
               <span style={styles.legendItem}>L1-L5 = Poziom</span>
             </div>
           </div>
@@ -415,25 +438,39 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer'
   },
-  expandButton: {
+  toolbarExpandButton: {
     backgroundColor: '#3B82F6',
     color: 'white',
     border: 'none',
-    padding: '0.5rem 0.8rem',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
+    padding: '0.6rem 1rem',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 4px rgba(59, 130, 246, 0.2)'
   },
-  collapseButton: {
+  toolbarExpandButtonHover: {
+    backgroundColor: '#2563EB',
+    transform: 'translateY(-1px)',
+    boxShadow: '0 4px 8px rgba(59, 130, 246, 0.3)'
+  },
+  toolbarCollapseButton: {
     backgroundColor: '#6B7280',
     color: 'white',
     border: 'none',
-    padding: '0.5rem 0.8rem',
-    borderRadius: '6px',
-    fontSize: '0.85rem',
+    padding: '0.6rem 1rem',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
     fontWeight: '600',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 4px rgba(107, 114, 128, 0.2)'
+  },
+  toolbarCollapseButtonHover: {
+    backgroundColor: '#4B5563',
+    transform: 'translateY(-1px)',
+    boxShadow: '0 4px 8px rgba(107, 114, 128, 0.3)'
   },
   legend: {
     display: 'flex',
@@ -512,11 +549,23 @@ const styles = {
   },
   unlockButton: {
     background: 'none',
+    border: '1px solid #10B981',
+    padding: '0.3rem 0.5rem',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    color: '#10B981',
+    transition: 'all 0.2s'
+  },
+  lockButton: {
+    background: 'none',
     border: '1px solid #F59E0B',
     padding: '0.3rem 0.5rem',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontSize: '0.9rem'
+    fontSize: '0.9rem',
+    color: '#F59E0B',
+    transition: 'all 0.2s'
   },
   addChildButton: {
     backgroundColor: '#10B981',
