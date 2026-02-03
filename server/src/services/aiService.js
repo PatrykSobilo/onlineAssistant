@@ -13,9 +13,15 @@ exports.chatWithAI = async (userMessage) => {
     // Initialize with API key
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Use gemini-1.5-flash model (better rate limits)
+    // Use gemini-2.5-flash model (available for v1 API)
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash'
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      }
     });
 
     // Generate response
@@ -23,6 +29,7 @@ exports.chatWithAI = async (userMessage) => {
     const response = await result.response;
     const text = response.text();
 
+    console.log('✅ AI Response generated successfully');
     return text;
   } catch (error) {
     console.error('AI Chat Error:', error.message || error);
