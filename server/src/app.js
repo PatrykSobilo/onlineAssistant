@@ -11,6 +11,7 @@ const noteCategoryRoutes = require('./routes/noteCategoryRoutes');
 const noteSubCategoryRoutes = require('./routes/noteSubCategoryRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const discussionRoutes = require('./routes/discussionRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use('/api/categories', noteCategoryRoutes);
 app.use('/api/subcategories', noteSubCategoryRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/discussions', discussionRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 404 Handler
 app.use((req, res) => {
