@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '../.env') });
 const { testConnection, sequelize } = require('./config/database');
 const { syncDatabase } = require('./models/index');
 
@@ -12,8 +14,6 @@ const noteSubCategoryRoutes = require('./routes/noteSubCategoryRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const discussionRoutes = require('./routes/discussionRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
