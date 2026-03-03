@@ -8,6 +8,7 @@
 # Uruchomienie: bash setup_server.sh
 
 set -e  # Zatrzymaj przy błędzie
+export DEBIAN_FRONTEND=noninteractive
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -52,7 +53,7 @@ echo -e "${GREEN}✅ Wyczyszczono poprzednią instalację${NC}\n"
 echo -e "${YELLOW}[2/9] Aktualizacja systemu...${NC}"
 
 apt-get update -qq
-apt-get install -y -qq curl git nginx certbot python3-certbot-nginx
+apt-get install -y -qq -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' curl git nginx certbot python3-certbot-nginx
 
 echo -e "${GREEN}✅ System zaktualizowany${NC}\n"
 
@@ -123,9 +124,21 @@ echo -e "${YELLOW}[6/9] Tworzenie pliku .env...${NC}"
 # Generuj JWT secret
 JWT_SECRET=$(openssl rand -hex 64)
 
-echo -e "${RED}⚠️  Musisz podać klucz Gemini API!${NC}"
-echo -n "Wpisz GEMINI_API_KEY: "
-read GEMINI_API_KEY
+# GEMINI_API_KEY można podać jako zmienną środowiskową lub argument skryptu
+if [ -z "$GEMINI_API_KEY" ]; then
+    if [ -n "$1" ]; then
+        GEMINI_API_KEY="$1"
+    else
+        echo -e "${RED}⚠️  Musisz podać klucz Gemini API!${NC}"
+        echo -n "Wpisz GEMINI_API_KEY: "
+        read GEMINI_API_KEY
+    fi
+fi
+
+if [ -z "$GEMINI_API_KEY" ]; then
+    echo -e "${RED}❌ GEMINI_API_KEY nie może być pusty!${NC}"
+    exit 1
+fi
 
 cat > "$APP_DIR/server/.env" << EOF
 NODE_ENV=production
