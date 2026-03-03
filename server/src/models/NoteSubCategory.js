@@ -31,7 +31,7 @@ const NoteSubCategory = sequelize.define('NoteSubCategory', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'note_subcategories',
+      model: 'note_sub_categories',
       key: 'id'
     },
     onDelete: 'CASCADE',
@@ -69,7 +69,7 @@ const NoteSubCategory = sequelize.define('NoteSubCategory', {
     defaultValue: DataTypes.NOW
   }
 }, {
-  tableName: 'note_subcategories',
+  tableName: 'note_sub_categories',
   timestamps: true
 });
 

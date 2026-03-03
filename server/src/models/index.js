@@ -27,7 +27,14 @@ Message.belongsTo(Discussion, { foreignKey: 'discussionId', as: 'discussion' });
 // Sync all models
 const syncDatabase = async () => {
   try {
-    await sequelize.sync({ alter: false });
+    // Sync models in correct order to handle foreign keys
+    await User.sync();
+    await UserSettings.sync();
+    await NoteCategory.sync();
+    await NoteSubCategory.sync();
+    await Note.sync();
+    await Discussion.sync();
+    await Message.sync();
     console.log('✅ All models synchronized successfully.');
   } catch (error) {
     console.error('❌ Error synchronizing models:', error);

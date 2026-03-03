@@ -30,7 +30,7 @@ const Note = sequelize.define('Note', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'note_subcategories',
+      model: 'note_sub_categories',
       key: 'id'
     },
     onDelete: 'SET NULL'
@@ -39,7 +39,7 @@ const Note = sequelize.define('Note', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'note_subcategories',
+      model: 'note_sub_categories',
       key: 'id'
     },
     onDelete: 'SET NULL'
@@ -48,7 +48,7 @@ const Note = sequelize.define('Note', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'note_subcategories',
+      model: 'note_sub_categories',
       key: 'id'
     },
     onDelete: 'SET NULL'
@@ -57,7 +57,7 @@ const Note = sequelize.define('Note', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'note_subcategories',
+      model: 'note_sub_categories',
       key: 'id'
     },
     onDelete: 'SET NULL'
@@ -66,7 +66,7 @@ const Note = sequelize.define('Note', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'note_subcategories',
+      model: 'note_sub_categories',
       key: 'id'
     },
     onDelete: 'SET NULL'
