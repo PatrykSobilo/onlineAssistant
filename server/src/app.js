@@ -18,9 +18,11 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Test database connection and sync models
-testConnection();
-syncDatabase();
+// Test database connection and sync models before starting server
+(async () => {
+  await testConnection();
+  await syncDatabase();
+})();
 
 // Middleware
 app.use(cors({

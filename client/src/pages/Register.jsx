@@ -7,18 +7,22 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
+    setLoading(true);
     
     const result = await register(name, email, password);
     if (result.success) {
       navigate('/');
     } else {
       setError(result.error);
+      setLoading(false);
     }
   };
 
@@ -68,8 +72,8 @@ const Register = () => {
             />
           </div>
           
-          <button type="submit" style={styles.button}>
-            Register
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? 'Creating account...' : 'Register'}
           </button>
         </form>
         

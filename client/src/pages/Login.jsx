@@ -6,18 +6,22 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
+    setLoading(true);
     
     const result = await login(email, password);
     if (result.success) {
       navigate('/');
     } else {
       setError(result.error);
+      setLoading(false);
     }
   };
 
@@ -54,8 +58,8 @@ const Login = () => {
             />
           </div>
           
-          <button type="submit" style={styles.button}>
-            Login
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         

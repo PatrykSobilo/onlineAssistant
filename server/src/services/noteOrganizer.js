@@ -2,8 +2,18 @@ const { Note, NoteCategory, NoteSubCategory } = require('../models');
 const aiService = require('./aiService');
 const { NOTE_CONTENT_PREVIEW_LENGTH } = require('../config/constants');
 
+// Per-user debounce: run autoOrganizeNotes at most once per 30 seconds
+const AUTO_ORGANIZE_COOLDOWN_MS = 30 * 1000;
+const lastAutoOrganizeTime = new Map();
+
 // Move notes to "Nieprzypisane" folders when their parent folder gains children
 const autoOrganizeNotes = async (userId) => {
+  const now = Date.now();
+  const lastRun = lastAutoOrganizeTime.get(userId) || 0;
+  if (now - lastRun < AUTO_ORGANIZE_COOLDOWN_MS) {
+    return; // skip — ran recently for this user
+  }
+  lastAutoOrganizeTime.set(userId, now);
   try {
     console.log('🔄 Starting auto-organization of notes...');
     
