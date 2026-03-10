@@ -1,129 +1,90 @@
-const { NoteSubCategory, NoteCategory, Note } = require('../models');
+const { sequelize, NoteSubCategory, NoteCategory, Note } = require('../models');
 const { Op } = require('sequelize');
+const { UNASSIGNED_FOLDER_NAME } = require('../config/constants');
 
 // Helper function to automatically move notes when creating subcategories
-const handleNotesAutoMove = async (userId, categoryId, parentSubCategoryId, newLevel, newSubCategoryId) => {
-  try {
-    // Find notes that need to be moved
-    let notesToMove = [];
-    
-    if (newLevel === 1) {
-      // Creating level 1 - move notes from category root (no subcategory)
+const handleNotesAutoMove = async (userId, categoryId, parentSubCategoryId, newLevel, newSubCategoryId, transaction = null) => {
+  const opts = transaction ? { transaction } : {};
+
+  // Find notes that need to be moved
+  let notesToMove = [];
+
+  if (newLevel === 1) {
+    // Creating level 1 - move notes from category root (no subcategory)
+    notesToMove = await Note.findAll({
+      where: { userId, noteCategoryId: categoryId, noteSubCategoryId1: null },
+      ...opts
+    });
+  } else if (newLevel === 2 && parentSubCategoryId) {
+    // Creating level 2 - move notes from level 1
+    notesToMove = await Note.findAll({
+      where: { userId, noteCategoryId: categoryId, noteSubCategoryId1: parentSubCategoryId, noteSubCategoryId2: null },
+      ...opts
+    });
+  } else if (newLevel === 3 && parentSubCategoryId) {
+    // Creating level 3 - move notes from level 2
+    const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId, opts);
+    if (parentSub) {
       notesToMove = await Note.findAll({
-        where: {
-          userId,
-          noteCategoryId: categoryId,
-          noteSubCategoryId1: null
-        }
+        where: { userId, noteCategoryId: categoryId, noteSubCategoryId1: parentSub.parentSubCategoryId, noteSubCategoryId2: parentSubCategoryId, noteSubCategoryId3: null },
+        ...opts
       });
-    } else if (newLevel === 2 && parentSubCategoryId) {
-      // Creating level 2 - move notes from level 1
-      notesToMove = await Note.findAll({
-        where: {
-          userId,
-          noteCategoryId: categoryId,
-          noteSubCategoryId1: parentSubCategoryId,
-          noteSubCategoryId2: null
-        }
-      });
-    } else if (newLevel === 3 && parentSubCategoryId) {
-      // Creating level 3 - move notes from level 2
-      const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId);
-      if (parentSub) {
+    }
+  } else if (newLevel === 4 && parentSubCategoryId) {
+    // Creating level 4 - move notes from level 3
+    const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId, opts);
+    if (parentSub) {
+      const grandparentSub = await NoteSubCategory.findByPk(parentSub.parentSubCategoryId, opts);
+      if (grandparentSub) {
         notesToMove = await Note.findAll({
-          where: {
-            userId,
-            noteCategoryId: categoryId,
-            noteSubCategoryId1: parentSub.parentSubCategoryId,
-            noteSubCategoryId2: parentSubCategoryId,
-            noteSubCategoryId3: null
-          }
+          where: { userId, noteCategoryId: categoryId, noteSubCategoryId1: grandparentSub.parentSubCategoryId, noteSubCategoryId2: grandparentSub.id, noteSubCategoryId3: parentSubCategoryId, noteSubCategoryId4: null },
+          ...opts
         });
       }
-    } else if (newLevel === 4 && parentSubCategoryId) {
-      // Creating level 4 - move notes from level 3
-      const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId);
-      if (parentSub) {
-        const grandparentSub = await NoteSubCategory.findByPk(parentSub.parentSubCategoryId);
-        if (grandparentSub) {
+    }
+  } else if (newLevel === 5 && parentSubCategoryId) {
+    // Creating level 5 - move notes from level 4
+    const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId, opts);
+    if (parentSub) {
+      const grandparentSub = await NoteSubCategory.findByPk(parentSub.parentSubCategoryId, opts);
+      if (grandparentSub) {
+        const greatGrandparentSub = await NoteSubCategory.findByPk(grandparentSub.parentSubCategoryId, opts);
+        if (greatGrandparentSub) {
           notesToMove = await Note.findAll({
-            where: {
-              userId,
-              noteCategoryId: categoryId,
-              noteSubCategoryId1: grandparentSub.parentSubCategoryId,
-              noteSubCategoryId2: grandparentSub.id,
-              noteSubCategoryId3: parentSubCategoryId,
-              noteSubCategoryId4: null
-            }
+            where: { userId, noteCategoryId: categoryId, noteSubCategoryId1: greatGrandparentSub.parentSubCategoryId, noteSubCategoryId2: greatGrandparentSub.id, noteSubCategoryId3: grandparentSub.id, noteSubCategoryId4: parentSubCategoryId, noteSubCategoryId5: null },
+            ...opts
           });
         }
       }
-    } else if (newLevel === 5 && parentSubCategoryId) {
-      // Creating level 5 - move notes from level 4
-      const parentSub = await NoteSubCategory.findByPk(parentSubCategoryId);
-      if (parentSub) {
-        const grandparentSub = await NoteSubCategory.findByPk(parentSub.parentSubCategoryId);
-        if (grandparentSub) {
-          const greatGrandparentSub = await NoteSubCategory.findByPk(grandparentSub.parentSubCategoryId);
-          if (greatGrandparentSub) {
-            notesToMove = await Note.findAll({
-              where: {
-                userId,
-                noteCategoryId: categoryId,
-                noteSubCategoryId1: greatGrandparentSub.parentSubCategoryId,
-                noteSubCategoryId2: greatGrandparentSub.id,
-                noteSubCategoryId3: grandparentSub.id,
-                noteSubCategoryId4: parentSubCategoryId,
-                noteSubCategoryId5: null
-              }
-            });
-          }
-        }
-      }
+    }
+  }
+
+  // If there are notes to move, create "Nieprzypisane" folder and move them
+  if (notesToMove.length > 0) {
+    let unassignedFolder = await NoteSubCategory.findOne({
+      where: { userId, categoryId, parentSubCategoryId: parentSubCategoryId || null, name: UNASSIGNED_FOLDER_NAME, level: newLevel, isActive: true },
+      ...opts
+    });
+
+    if (!unassignedFolder) {
+      unassignedFolder = await NoteSubCategory.create({
+        userId,
+        categoryId,
+        parentSubCategoryId: parentSubCategoryId || null,
+        level: newLevel,
+        name: UNASSIGNED_FOLDER_NAME,
+        isActive: true,
+        isUnlocked: newLevel < 3
+      }, opts);
     }
 
-    // If there are notes to move, create "Nieprzypisane" folder and move them
-    if (notesToMove.length > 0) {
-      // Check if "Nieprzypisane" folder already exists
-      let unassignedFolder = await NoteSubCategory.findOne({
-        where: {
-          userId,
-          categoryId,
-          parentSubCategoryId: parentSubCategoryId || null,
-          name: 'Nieprzypisane',
-          level: newLevel,
-          isActive: true
-        }
-      });
-
-      // Create if doesn't exist
-      if (!unassignedFolder) {
-        unassignedFolder = await NoteSubCategory.create({
-          userId,
-          categoryId,
-          parentSubCategoryId: parentSubCategoryId || null,
-          level: newLevel,
-          name: 'Nieprzypisane',
-          isActive: true,
-          isUnlocked: newLevel < 3
-        });
-      }
-
-      // Move all notes to "Nieprzypisane" folder
-      for (const note of notesToMove) {
-        const updates = {};
-        
-        // Set the appropriate level subcategory ID
-        updates[`noteSubCategoryId${newLevel}`] = unassignedFolder.id;
-        
-        await note.update(updates);
-      }
-
-      console.log(`✅ Moved ${notesToMove.length} notes to "Nieprzypisane" folder at level ${newLevel}`);
+    for (const note of notesToMove) {
+      const updates = {};
+      updates[`noteSubCategoryId${newLevel}`] = unassignedFolder.id;
+      await note.update(updates, opts);
     }
-  } catch (error) {
-    console.error('Error in handleNotesAutoMove:', error);
-    // Don't throw - we don't want to break subcategory creation
+
+    console.log(`✅ Moved ${notesToMove.length} notes to "${UNASSIGNED_FOLDER_NAME}" folder at level ${newLevel}`);
   }
 };
 
@@ -344,35 +305,38 @@ exports.createSubCategory = async (req, res) => {
       return res.status(400).json({ message: 'Subkategoria o tej nazwie już istnieje na tym poziomie' });
     }
 
-    // Utwórz subkategorię
-    const subcategory = await NoteSubCategory.create({
-      userId: req.user.id,
-      categoryId,
-      parentSubCategoryId: parentSubCategoryId || null,
-      level: calculatedLevel,
-      name,
-      isActive: true,
-      isUnlocked: calculatedLevel < 3 // Poziomy 1-2 odblokowane domyślnie
-    });
+    // Utwórz subkategorię i przenieś notatki atomowo
+    const fullSubCategory = await sequelize.transaction(async (t) => {
+      const subcategory = await NoteSubCategory.create({
+        userId: req.user.id,
+        categoryId,
+        parentSubCategoryId: parentSubCategoryId || null,
+        level: calculatedLevel,
+        name,
+        isActive: true,
+        isUnlocked: calculatedLevel < 3 // Poziomy 1-2 odblokowane domyślnie
+      }, { transaction: t });
 
-    // Automatically move notes to "Nieprzypisane" folder when creating subcategory
-    await handleNotesAutoMove(req.user.id, categoryId, parentSubCategoryId, calculatedLevel, subcategory.id);
+      // Automatically move notes to "Nieprzypisane" folder when creating subcategory
+      await handleNotesAutoMove(req.user.id, categoryId, parentSubCategoryId, calculatedLevel, subcategory.id, t);
 
-    // Pobierz pełne dane z relacjami
-    const fullSubCategory = await NoteSubCategory.findByPk(subcategory.id, {
-      include: [
-        {
-          model: NoteCategory,
-          as: 'category',
-          attributes: ['id', 'name', 'icon', 'color']
-        },
-        {
-          model: NoteSubCategory,
-          as: 'parentSubCategory',
-          attributes: ['id', 'name', 'level'],
-          required: false
-        }
-      ]
+      // Pobierz pełne dane z relacjami
+      return NoteSubCategory.findByPk(subcategory.id, {
+        include: [
+          {
+            model: NoteCategory,
+            as: 'category',
+            attributes: ['id', 'name', 'icon', 'color']
+          },
+          {
+            model: NoteSubCategory,
+            as: 'parentSubCategory',
+            attributes: ['id', 'name', 'level'],
+            required: false
+          }
+        ],
+        transaction: t
+      });
     });
 
     res.status(201).json(fullSubCategory);
@@ -478,26 +442,27 @@ exports.toggleLockSubCategory = async (req, res) => {
     const newLockState = !subcategory.isUnlocked;
 
     // Funkcja rekurencyjna do blokowania/odblokowywania dzieci
-    const updateChildrenLock = async (parentId, lockState) => {
+    const updateChildrenLock = async (parentId, lockState, t) => {
       const children = await NoteSubCategory.findAll({
         where: {
           parentSubCategoryId: parentId,
           userId: req.user.id,
           isActive: true
-        }
+        },
+        transaction: t
       });
 
       for (const child of children) {
-        await child.update({ isUnlocked: lockState });
-        await updateChildrenLock(child.id, lockState);
+        await child.update({ isUnlocked: lockState }, { transaction: t });
+        await updateChildrenLock(child.id, lockState, t);
       }
     };
 
-    // Aktualizuj główną subkategorię
-    await subcategory.update({ isUnlocked: newLockState });
-
-    // Aktualizuj wszystkie dzieci kaskadowo
-    await updateChildrenLock(subcategory.id, newLockState);
+    // Aktualizuj główną subkategorię i wszystkie dzieci atomowo
+    await sequelize.transaction(async (t) => {
+      await subcategory.update({ isUnlocked: newLockState }, { transaction: t });
+      await updateChildrenLock(subcategory.id, newLockState, t);
+    });
 
     res.json({
       message: newLockState ? 'Subkategoria i jej dzieci zostały odblokowane' : 'Subkategoria i jej dzieci zostały zablokowane',
@@ -583,25 +548,26 @@ exports.deleteSubCategory = async (req, res) => {
     }
 
     // Funkcja rekurencyjna do usuwania dzieci
-    const deleteChildren = async (parentId) => {
+    const deleteChildren = async (parentId, t) => {
       const children = await NoteSubCategory.findAll({
         where: {
           parentSubCategoryId: parentId,
           userId: req.user.id
-        }
+        },
+        transaction: t
       });
 
       for (const child of children) {
-        await deleteChildren(child.id);
-        await child.update({ isActive: false });
+        await deleteChildren(child.id, t);
+        await child.update({ isActive: false }, { transaction: t });
       }
     };
 
-    // Usuń wszystkie dzieci
-    await deleteChildren(subcategory.id);
-
-    // Usuń samą subkategorię
-    await subcategory.update({ isActive: false });
+    // Usuń wszystkie dzieci i subkategorię atomowo
+    await sequelize.transaction(async (t) => {
+      await deleteChildren(subcategory.id, t);
+      await subcategory.update({ isActive: false }, { transaction: t });
+    });
 
     res.json({ message: 'Subkategoria i jej dzieci zostały usunięte' });
   } catch (error) {

@@ -2,7 +2,7 @@ const { Note, NoteCategory, NoteSubCategory } = require('../models');
 const { Op } = require('sequelize');
 const { autoOrganizeNotes } = require('../services/noteOrganizer');
 
-// Pobierz wszystkie notatki użytkownika z filtrowaniem
+// Pobierz wszystkie notatki użytkownika z filtrowaniem i opcjonalną paginacją
 exports.getNotes = async (req, res) => {
   try {
     // Auto-organize notes before fetching
@@ -18,7 +18,9 @@ exports.getNotes = async (req, res) => {
       tags,
       search,
       source,
-      language
+      language,
+      page,
+      limit
     } = req.query;
 
     const where = { userId: req.user.id };
@@ -59,45 +61,44 @@ exports.getNotes = async (req, res) => {
       where.tags = { [Op.contains]: tagArray };
     }
 
+    const include = [
+      {
+        model: NoteCategory,
+        as: 'category',
+        attributes: ['id', 'name', 'icon', 'color']
+      },
+      { model: NoteSubCategory, as: 'subCategory1', attributes: ['id', 'name', 'level'], required: false },
+      { model: NoteSubCategory, as: 'subCategory2', attributes: ['id', 'name', 'level'], required: false },
+      { model: NoteSubCategory, as: 'subCategory3', attributes: ['id', 'name', 'level'], required: false },
+      { model: NoteSubCategory, as: 'subCategory4', attributes: ['id', 'name', 'level'], required: false },
+      { model: NoteSubCategory, as: 'subCategory5', attributes: ['id', 'name', 'level'], required: false }
+    ];
+
+    // Opcjonalna paginacja
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const pageSize = Math.min(200, Math.max(1, parseInt(limit) || 50));
+      const offset = (pageNum - 1) * pageSize;
+
+      const { count, rows } = await Note.findAndCountAll({
+        where,
+        include,
+        order: [['createdAt', 'DESC']],
+        limit: pageSize,
+        offset
+      });
+
+      return res.json({
+        data: rows,
+        total: count,
+        page: pageNum,
+        pages: Math.ceil(count / pageSize)
+      });
+    }
+
     const notes = await Note.findAll({
       where,
-      include: [
-        {
-          model: NoteCategory,
-          as: 'category',
-          attributes: ['id', 'name', 'icon', 'color']
-        },
-        {
-          model: NoteSubCategory,
-          as: 'subCategory1',
-          attributes: ['id', 'name', 'level'],
-          required: false
-        },
-        {
-          model: NoteSubCategory,
-          as: 'subCategory2',
-          attributes: ['id', 'name', 'level'],
-          required: false
-        },
-        {
-          model: NoteSubCategory,
-          as: 'subCategory3',
-          attributes: ['id', 'name', 'level'],
-          required: false
-        },
-        {
-          model: NoteSubCategory,
-          as: 'subCategory4',
-          attributes: ['id', 'name', 'level'],
-          required: false
-        },
-        {
-          model: NoteSubCategory,
-          as: 'subCategory5',
-          attributes: ['id', 'name', 'level'],
-          required: false
-        }
-      ],
+      include,
       order: [['createdAt', 'DESC']]
     });
 
