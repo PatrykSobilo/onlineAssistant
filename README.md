@@ -1,91 +1,161 @@
-Doskonale! Oto źródła, które potwierdzają tę strukturę:
+# Online Assistant 🤖
 
-📚 Źródła potwierdzające strukturę Client/Server:
-1. Oficjalna dokumentacja React:
-https://react.dev/learn/start-a-new-react-project
+A voice-first, AI-powered personal note-taking app. Speak your thoughts, and the app uses **Google Gemini** to extract, categorize, and store them as structured notes. You can then have context-aware AI conversations based on your own knowledge base.
 
-React zaleca osobny projekt frontend z bundlerem (Vite/Next.js)
-Cytat: "React is a library. It lets you put components together, but it doesn't prescribe how to do routing and data fetching. To build an entire app with React, we recommend a full-stack React framework like Next.js or Remix."
-2. Vite dokumentacja (oficjalny bundler):
-https://vitejs.dev/guide/
+> Built with the help of AI — using a "reviewer" approach: the project structure was defined upfront, and AI generated the implementation which was then reviewed, corrected, and refined.
 
-Vite wymaga osobnego projektu z własnym package.json
-Build creates static files: dist/ folder
-3. Express Best Practices (Node.js foundation):
-https://expressjs.com/en/advanced/best-practice-performance.html
-https://github.com/goldbergyoni/nodebestpractices
+**Live demo:** [sobit.uk](https://sobit.uk)
 
-Sekcja: "Project Structure"
-Zaleca: separację warstw (routes, controllers, services)
-Dla API: brak views, tylko JSON responses
-4. Full-stack architecture (freeCodeCamp):
-https://www.freecodecamp.org/news/how-to-create-a-react-app-with-a-node-backend-the-complete-guide/
+---
 
-Tutorial dokładnie tej struktury: client + server
-Wyjaśnia dlaczego osobne foldery
-5. MERN Stack oficjalny tutorial (MongoDB):
-https://www.mongodb.com/languages/mern-stack-tutorial
+## Features
 
-MongoDB, Express, React, Node
-Pokazuje strukturę: frontend folder + backend folder
-🎓 Dlaczego ta struktura jest lepsza - UZASADNIENIE:
-1. Różne środowiska uruchomieniowe:
-Client (React): Działa w przeglądarce użytkownika
-Bundle JavaScript wysyłany do przeglądarki
-Wykonuje się po stronie klienta
-Server (Node.js): Działa na serwerze
-Nigdy nie trafia do przeglądarki
-Przetwarza requesty, łączy się z DB
-2. Różne buildy:
-Client: npm run build → static files (HTML, CSS, JS)
-Deploy na CDN (Cloudflare, Vercel, Netlify)
-Server: Nie wymaga buildu, działa bezpośrednio
-Deploy na server (DigitalOcean, Railway)
-3. Różne dependencies:
-Client: react, react-dom, vite - frontend libraries
-Server: express, mongoose, jsonwebtoken - backend libraries
-Osobne package.json = osobne zależności
-4. Różne porty podczas dev:
-Client: localhost:5173 (Vite dev server)
-Server: localhost:5000 (Express API)
-Komunikują się przez HTTP/API calls
-5. Deployment flexibility:
-📖 Porównanie z BudgetBuddy:
-BudgetBuddy (Monolith - PHP):
-Wszystko w jednym miejscu
-PHP generuje HTML z views/
-Jeden deploy, jeden serwer
-Online Assistant (SPA - React + API):
-Dwa osobne projekty
-React = aplikacja w przeglądarce
-Server = tylko API (JSON)
-Dwa deploye (Client CDN + Server)
-🔍 Jak to działa krok po kroku:
-User otwiera stronę → localhost:5173
-Vite serwuje React app (index.html + JS bundle)
-React ładuje się w przeglądarce użytkownika
-User klika "Login"
-React wysyła POST /api/auth/login → localhost:5000
-Express przetwarza request, sprawdza DB, zwraca JSON
-React odbiera JSON i aktualizuje UI
-Klucz: Frontend i Backend to dwa osobne programy komunikujące się przez HTTP API.
+### 📝 Note Capture
+- **Voice recording** with real-time speech-to-text transcription (interim + final)
+- **Automatic silence detection** — sends to AI after 10 seconds of no speech
+- **Manual text input** as an alternative to voice
+- **File import** — VTT, SRT, SBV, TXT (meeting recordings, lecture transcripts)
+- Notes go through **Google Gemini** before being saved — there's a short processing delay by design
 
-📦 Dlaczego NIE jak BudgetBuddy:
-BudgetBuddy działa bo:
+### 📁 Organization
+- **Categories** with emoji icons and colors
+- Up to **5 levels of subcategories** per category
+- When a new subcategory is created, existing notes are automatically moved to an **"Unassigned"** folder to preserve hierarchy integrity
+- Subcategory levels 3–5 have an optional **lock/unlock** mechanism
 
-PHP renderuje HTML server-side
-views/ folder z template'ami PHP
-Każdy request = nowy HTML
-React SPA:
+### 🤖 AI Organization
+- **Auto-organize unassigned notes** — AI assigns each note to the most appropriate subcategory
+- **Re-organize all notes** in a category from scratch
+- **Merge similar notes** into a single consolidated note
+- **Create a note from a description** — describe what you want and the AI writes it
 
-Nie można "renderować" React na serwerze Express (bez dodatkowego setup)
-React musi być zbuildowany przez Vite
-Końcowy produkt = static files
-✅ Podsumowanie - Evidence Based:
-Aspekt	Client/Server Split	Monolith (jak PHP)
-React SPA	✅ Natywne	❌ Skomplikowane
-Deployment	✅ Osobno (CDN + Server)	❌ Razem
-Scaling	✅ Frontend CDN worldwide	❌ Jeden server
-Development	✅ Hot reload (Vite)	❌ Restart serwera
-Industry Standard 2026	✅ TAK	❌ Legacy
-Teraz rozumiesz czemu ta struktura? Mogę iść dalej z instalacją? 🚀
+### 💬 Discussions
+- Context-aware **chat with AI** tied to a specific category
+- AI pulls your notes from that category as context — it reasons based on your own knowledge base
+- Multiple separate discussions, each with full message history
+
+### 👤 Account
+- JWT-based authentication
+- Profile editing, password change, full account deletion (all data removed)
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React + Vite |
+| Backend | Node.js + Express |
+| ORM | Sequelize |
+| Database | MySQL |
+| AI | Google Gemini (gemini-2.5-flash) |
+| Auth | JWT |
+| Deployment | DigitalOcean + Nginx + PM2 |
+| SSL | Let's Encrypt |
+
+---
+
+## Project Structure
+
+```
+onlineAssistant/
+├── client/                  # React frontend (Vite)
+│   └── src/
+│       ├── pages/           # Login, Register, Dashboard, Notes, Categories, Discussions, Settings
+│       ├── components/      # Navbar, RecordButton, TranscriptionDisplay, ...
+│       ├── hooks/           # useSpeechRecognition
+│       ├── services/        # api.js (Axios instance)
+│       └── context/         # AuthContext
+└── server/                  # Node.js + Express backend
+    └── src/
+        ├── controllers/     # authController, noteController, noteAiController, ...
+        ├── services/        # aiService, noteOrganizer
+        ├── models/          # Sequelize models
+        ├── routes/          # Express routes
+        ├── middleware/      # authMiddleware
+        └── config/          # database.js, constants.js
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- MySQL
+- Google Gemini API key
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/PatrykSobilo/onlineAssistant.git
+cd onlineAssistant
+```
+
+### 2. Configure environment variables
+
+Create `server/.env`:
+
+```env
+PORT=5000
+DB_HOST=localhost
+DB_USER=your_mysql_user
+DB_PASSWORD=your_mysql_password
+DB_NAME=online_assistant
+JWT_SECRET=your_secret_key
+GEMINI_API_KEY=your_gemini_api_key
+CLIENT_URL=http://localhost:5173
+NODE_ENV=development
+```
+
+Create `client/.env`:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+### 3. Set up the database
+
+```bash
+mysql -u root -p < server/create_database.sql
+```
+
+### 4. Install dependencies & run
+
+```bash
+# Backend
+cd server
+npm install
+npm run dev
+
+# Frontend (separate terminal)
+cd client
+npm install
+npm run dev
+```
+
+Frontend runs on `http://localhost:5173`, backend on `http://localhost:5000`.
+
+---
+
+## First Use
+
+1. Register an account and log in
+2. Go to **Categories** and create at least one category before using any other features
+3. Return to the **Dashboard** and start recording notes
+
+---
+
+## Security
+
+- Rate limiting on `/api/auth` (10 requests / 15 min)
+- JWT secret validated at startup — server refuses to start without it
+- Passwords hashed with bcrypt
+- 401 responses automatically clear the session and redirect to login
+- Database transactions for multi-step operations
+
+---
+
+## License
+
+ISC
