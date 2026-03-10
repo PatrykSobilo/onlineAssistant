@@ -18,11 +18,25 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Test database connection and sync models before starting server
-(async () => {
-  await testConnection();
-  await syncDatabase();
-})();
+// Connect to DB with retry — prevents PM2 restart storm when MySQL is briefly down
+const connectWithRetry = async (retries = 10, delayMs = 5000) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await testConnection();
+      await syncDatabase();
+      return;
+    } catch (err) {
+      if (attempt === retries) {
+        console.error(`❌ Could not connect to database after ${retries} attempts. Exiting.`);
+        process.exit(1);
+      }
+      console.warn(`⏳ DB connection attempt ${attempt}/${retries} failed. Retrying in ${delayMs / 1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+};
+
+connectWithRetry();
 
 // Middleware
 app.use(cors({
