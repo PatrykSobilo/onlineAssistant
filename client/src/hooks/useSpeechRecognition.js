@@ -46,18 +46,12 @@ const useSpeechRecognition = (language = 'en-US') => {
       // Handle errors
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        if (event.error === 'no-speech') {
-          console.log('No speech detected, continuing...');
-          // Don't stop on no-speech, just continue
-          return;
-        }
-        if (event.error === 'aborted') {
-          console.log('Recognition aborted');
+        if (event.error === 'no-speech' || event.error === 'aborted') {
           return;
         }
         // Only stop on actual errors
-        setIsListening(false);
-        isListeningRef.current = false;
+        isRecognitionRunningRef.current = false;
+        setIsMicActive(false);
       };
       
       // Handle end

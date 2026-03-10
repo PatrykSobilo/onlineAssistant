@@ -42,13 +42,18 @@ exports.register = async (req, res) => {
     });
 
     // Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || 'default-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    console.log('✅ User registered:', email);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ User registered:', email);
+    }
 
     // Send response (without password)
     res.status(201).json({
@@ -88,13 +93,18 @@ exports.login = async (req, res) => {
     }
 
     // Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || 'default-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    console.log('✅ User logged in:', email);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ User logged in:', email);
+    }
 
     // Send response (without password)
     res.json({

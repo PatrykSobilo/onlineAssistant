@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const noteController = require('../controllers/noteController');
+const noteAiController = require('../controllers/noteAiController');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Wszystkie routy wymagają autentykacji
@@ -31,15 +32,15 @@ router.post('/:id/tags', noteController.addTag);
 router.delete('/:id/tags', noteController.removeTag);
 
 // POST /api/notes/ai-organize - AI organization of unassigned notes
-router.post('/ai-organize', noteController.aiOrganizeUnassigned);
+router.post('/ai-organize', noteAiController.aiOrganizeUnassigned);
 
 // POST /api/notes/ai-reorganize - AI reorganization of all notes in category
-router.post('/ai-reorganize', noteController.aiReorganizeAll);
+router.post('/ai-reorganize', noteAiController.aiReorganizeAll);
 
 // POST /api/notes/ai-merge - AI merging of notes in a category
-router.post('/ai-merge', noteController.aiMergeNotes);
+router.post('/ai-merge', noteAiController.aiMergeNotes);
 
 // POST /api/notes/ai-create - AI-based note creation from user input
-router.post('/ai-create', noteController.aiCreateNote);
+router.post('/ai-create', noteAiController.aiCreateNote);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const { Discussion, Message, Note, NoteCategory, NoteSubCategory } = require('../models');
 const { chatWithAI } = require('../services/aiService');
+const { DISCUSSION_MESSAGE_HISTORY_LIMIT, CONTEXT_NOTES_LIMIT } = require('../config/constants');
 
 // Helper function to get all subcategory IDs recursively
 const getAllSubCategoryIds = async (subCategoryId) => {
@@ -55,7 +56,7 @@ const getContextNotes = async (discussion) => {
       }
     ],
     order: [['createdAt', 'DESC']],
-    limit: 50 // Limit to prevent too much context
+    limit: CONTEXT_NOTES_LIMIT
   });
 
   return notes;
@@ -169,7 +170,7 @@ exports.sendMessage = async (req, res) => {
     const previousMessages = await Message.findAll({
       where: { discussionId: id },
       order: [['createdAt', 'ASC']],
-      limit: 20 // Last 20 messages
+      limit: DISCUSSION_MESSAGE_HISTORY_LIMIT
     });
 
     // Get notes from context

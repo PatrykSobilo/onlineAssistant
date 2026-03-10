@@ -54,10 +54,11 @@ const Dashboard = () => {
     const silenceCheckInterval = setInterval(() => {
       const timeSinceLastChange = Date.now() - lastTranscriptChange;
       
-      if (timeSinceLastChange >= 10000 && transcript.trim().length > 0) {
-        handleAskAI(transcript);
+      if (timeSinceLastChange >= 10000 && transcript.trim().length > 0 && !isAnalyzing) {
+        const textToSend = transcript;
         resetTranscript();
-        setLastTranscriptChange(Date.now()); // Reset timer
+        setLastTranscriptChange(Date.now());
+        handleAskAI(textToSend);
       }
     }, 1000); // Check every second
 
