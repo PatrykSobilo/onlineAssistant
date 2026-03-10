@@ -57,6 +57,8 @@ echo -e "${BLUE}Step 4: Restarting application on server...${NC}"
 
 ssh $SERVER_USER@$SERVER_IP << 'ENDSSH'
 cd /var/www/onlineassistant
+git pull origin main
+cd server && npm install --production && cd ..
 pm2 restart onlineassistant || pm2 start ecosystem.config.js
 pm2 save
 ENDSSH
